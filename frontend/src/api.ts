@@ -1,11 +1,11 @@
 export type AnalysisStatus = "queued" | "running" | "completed" | "failed";
 
 export interface AnalysisRun {
-  id: string;
-  package_name: string;
-  status: AnalysisStatus;
-  created_at: string;
-  updated_at: string;
+    id: string;
+    package_name: string;
+    status: AnalysisStatus;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface CreateAnalysisRequest {
@@ -14,7 +14,7 @@ export interface CreateAnalysisRequest {
 }
 
 export interface CreateAnalysisResponse {
-  run: AnalysisRun;
+    run: AnalysisRun;
 }
 
 export interface AuthUser {
@@ -66,29 +66,43 @@ export async function logoutCurrentUser(): Promise<void> {
 }
 
 export async function createAnalysis(
-  payload: CreateAnalysisRequest,
+    payload: CreateAnalysisRequest,
 ): Promise<CreateAnalysisResponse> {
     const formData = new FormData();
     formData.append("file", payload.file);
     formData.append("package_name", payload.packageName);
 
     const response = await apiFetch("/api/v1/analyses", {
-    method: "POST",
+        method: "POST",
         body: formData,
-  });
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to create analysis: HTTP ${response.status}`);
-  }
+    if (!response.ok) {
+        throw new Error(`Failed to create analysis: HTTP ${response.status}`);
+    }
 
-  return response.json() as Promise<CreateAnalysisResponse>;
+    return response.json() as Promise<CreateAnalysisResponse>;
 }
 
 export async function getAnalysis(runId: string): Promise<AnalysisRun> {
     const response = await apiFetch(`/api/v1/analyses/${runId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch analysis: HTTP ${response.status}`);
-  }
+    if (!response.ok) {
+        throw new Error(`Failed to fetch analysis: HTTP ${response.status}`);
+    }
 
-  return response.json() as Promise<AnalysisRun>;
+    return response.json() as Promise<AnalysisRun>;
+}
+
+export interface ListAnalysesResponse {
+    runs: AnalysisRun[];
+}
+
+export async function listAnalyses(): Promise<AnalysisRun[]> {
+    const response = await apiFetch(`/api/v1/analyses`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch analyses: HTTP ${response.status}`);
+    }
+
+    const data = await response.json() as ListAnalysesResponse;
+    return data.runs;
 }

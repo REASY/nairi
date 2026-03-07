@@ -4,6 +4,7 @@ import {ShieldAlert, Upload, Settings, Activity, FileText, LogOut} from "lucide-
 import ConfigView from "./pages/ConfigView";
 import UploadView from "./pages/UploadView";
 import PromptsView from "./pages/PromptsView";
+import LiveRunsView from "./pages/LiveRunsView";
 import {
     AuthUser,
     getCurrentUser,
@@ -193,10 +194,7 @@ export default function App() {
                     <Route
                         path="/runs"
                         element={
-                            <div className="glass-panel">
-                                <h1>Live Runs</h1>
-                                <p>Not implemented yet.</p>
-                            </div>
+                            <LiveRunsView/>
                         }
                     />
                     <Route

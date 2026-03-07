@@ -73,6 +73,10 @@ impl Orchestrator {
     pub async fn get_run(&self, run_id: Uuid) -> Option<AnalysisRun> {
         self.storage.get_run(run_id).await
     }
+
+    pub async fn list_runs(&self) -> Vec<AnalysisRun> {
+        self.storage.list_runs().await
+    }
 }
 
 async fn run_lifecycle(

@@ -14,7 +14,6 @@ use nairi_core::config::{AppConfig, PromptConfig};
 use nairi_orchestrator::Orchestrator;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
-use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt as _;
@@ -40,7 +39,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/v1/analyses",
-            post(create_analysis).layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
+            get(list_analyses)
+                .post(create_analysis)
+                .layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
         )
         .route("/api/v1/analyses/{id}", get(get_analysis))
         .route("/api/v1/analyses/{id}/stream", get(stream_analysis))
@@ -229,6 +230,16 @@ async fn get_analysis(State(state): State<AppState>, Path(id): Path<String>) -> 
         )
             .into_response(),
     }
+}
+
+#[derive(Debug, Serialize)]
+struct ListAnalysesResponse {
+    runs: Vec<AnalysisRun>,
+}
+
+async fn list_analyses(State(state): State<AppState>) -> impl IntoResponse {
+    let runs = state.orchestrator.list_runs().await;
+    (StatusCode::OK, Json(ListAnalysesResponse { runs })).into_response()
 }
 
 async fn stream_analysis(

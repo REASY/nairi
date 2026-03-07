@@ -204,6 +204,45 @@ impl Storage {
         })
     }
 
+    pub async fn list_runs(&self) -> Vec<AnalysisRun> {
+        let rows = sqlx::query(
+            "SELECT id, package_name, status, created_at, updated_at FROM runs ORDER BY created_at DESC",
+        )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap_or_default();
+
+        rows.into_iter()
+            .filter_map(|row| {
+                let id_str: String = row.get("id");
+                let status_str: String = row.get("status");
+
+                let status = match status_str.as_str() {
+                    "Queued" | "queued" => AnalysisStatus::Queued,
+                    "Running" | "running" => AnalysisStatus::Running,
+                    "Completed" | "completed" => AnalysisStatus::Completed,
+                    "Failed" | "failed" => AnalysisStatus::Failed,
+                    _ => return None,
+                };
+
+                let created_str: String = row.get("created_at");
+                let updated_str: String = row.get("updated_at");
+
+                Some(AnalysisRun {
+                    id: Uuid::from_str(&id_str).unwrap_or_default(),
+                    package_name: row.get("package_name"),
+                    status,
+                    created_at: DateTime::parse_from_rfc3339(&created_str)
+                        .unwrap_or_else(|_| Utc::now().into())
+                        .into(),
+                    updated_at: DateTime::parse_from_rfc3339(&updated_str)
+                        .unwrap_or_else(|_| Utc::now().into())
+                        .into(),
+                })
+            })
+            .collect()
+    }
+
     pub async fn update_run(&self, run: AnalysisRun) {
         let status_str = format!("{:?}", run.status);
         sqlx::query(
