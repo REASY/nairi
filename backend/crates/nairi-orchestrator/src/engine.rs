@@ -66,4 +66,16 @@ impl DockerEngine {
             Err("Container exited with non-zero status".into())
         }
     }
+
+    pub async fn get_report(&self, run_id: Uuid) -> Option<String> {
+        let reports_dir = self.workspace_root.join(run_id.to_string()).join("reports");
+        let mut entries = tokio::fs::read_dir(&reports_dir).await.ok()?;
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                return tokio::fs::read_to_string(path).await.ok();
+            }
+        }
+        None
+    }
 }

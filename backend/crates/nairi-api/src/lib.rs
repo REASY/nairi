@@ -44,6 +44,7 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
         )
         .route("/api/v1/analyses/{id}", get(get_analysis))
+        .route("/api/v1/analyses/{id}/report", get(get_analysis_report))
         .route("/api/v1/analyses/{id}/stream", get(stream_analysis))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -240,6 +241,39 @@ struct ListAnalysesResponse {
 async fn list_analyses(State(state): State<AppState>) -> impl IntoResponse {
     let runs = state.orchestrator.list_runs().await;
     (StatusCode::OK, Json(ListAnalysesResponse { runs })).into_response()
+}
+
+#[derive(Debug, Serialize)]
+struct ReportResponse {
+    report: String,
+}
+
+async fn get_analysis_report(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let run_id = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new(
+                    "invalid_id",
+                    "run id must be a valid UUID",
+                )),
+            )
+                .into_response();
+        }
+    };
+
+    match state.orchestrator.get_report(run_id).await {
+        Some(report) => (StatusCode::OK, Json(ReportResponse { report })).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new("not_found", "report not found")),
+        )
+            .into_response(),
+    }
 }
 
 async fn stream_analysis(

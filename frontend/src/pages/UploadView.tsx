@@ -30,14 +30,18 @@ export default function UploadView() {
                 try {
                     const data = JSON.parse(event.data);
                     if (data && data.StatusUpdate) {
-                        const status = data.StatusUpdate.status;
-                        if (status === "Completed") {
+                        const status = typeof data.StatusUpdate.status === 'string'
+                            ? data.StatusUpdate.status.toLowerCase()
+                            : String(data.StatusUpdate.status);
+
+                        if (status === "completed") {
                             setProgress(3);
                             eventSource.close();
                             setAnalyzing(false);
-                        } else if (status === "Running") {
+                            alert("Analysis completed successfully! You can view the report in the Live Runs or Reports tab.");
+                        } else if (status === "running") {
                             setProgress(1);
-                        } else if (status === "Failed") {
+                        } else if (status === "failed") {
                             setAnalyzing(false);
                             eventSource.close();
                             alert("Analysis failed!");

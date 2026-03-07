@@ -5,6 +5,7 @@ import ConfigView from "./pages/ConfigView";
 import UploadView from "./pages/UploadView";
 import PromptsView from "./pages/PromptsView";
 import LiveRunsView from "./pages/LiveRunsView";
+import ReportsView from "./pages/ReportsView";
 import {
     AuthUser,
     getCurrentUser,
@@ -200,10 +201,13 @@ export default function App() {
                     <Route
                         path="/reports"
                         element={
-                            <div className="glass-panel">
-                                <h1>Reports</h1>
-                                <p>Not implemented yet.</p>
-                            </div>
+                            <ReportsView/>
+                        }
+                    />
+                    <Route
+                        path="/reports/:runId"
+                        element={
+                            <ReportsView/>
                         }
                     />
                 </Routes>

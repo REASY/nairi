@@ -106,3 +106,17 @@ export async function listAnalyses(): Promise<AnalysisRun[]> {
     const data = await response.json() as ListAnalysesResponse;
     return data.runs;
 }
+
+export interface ReportResponse {
+    report: string;
+}
+
+export async function getAnalysisReport(runId: string): Promise<string> {
+    const response = await apiFetch(`/api/v1/analyses/${runId}/report`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch report: HTTP ${response.status}`);
+    }
+
+    const data = await response.json() as ReportResponse;
+    return data.report;
+}

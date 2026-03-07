@@ -1,8 +1,10 @@
 import {useEffect, useState} from "react";
 import {Activity, Play, CheckCircle, AlertCircle, Clock} from "lucide-react";
+import {useNavigate} from "react-router-dom";
 import {listAnalyses, AnalysisRun} from "../api";
 
 export default function LiveRunsView() {
+    const navigate = useNavigate();
     const [runs, setRuns] = useState<AnalysisRun[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export default function LiveRunsView() {
                                         className="btn-secondary"
                                         style={{padding: "6px 12px", fontSize: "0.85em"}}
                                         disabled={run.status !== 'completed'}
+                                        onClick={() => navigate(`/reports/${run.id}`)}
                                     >
                                         View Report
                                     </button>
