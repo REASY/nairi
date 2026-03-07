@@ -60,11 +60,12 @@ impl Orchestrator {
 
         let storage = self.storage.clone();
         let run_id = run.id;
+        let package_name = run.package_name.clone();
         let tx = self.tx.clone();
         let engine = self.engine.clone();
 
         tokio::spawn(async move {
-            run_lifecycle(storage, run_id, tx, engine, apk_path).await;
+            run_lifecycle(storage, run_id, package_name, tx, engine, apk_path).await;
         });
 
         run
@@ -86,6 +87,7 @@ impl Orchestrator {
 async fn run_lifecycle(
     storage: Arc<Storage>,
     run_id: Uuid,
+    package_name: String,
     tx: tokio::sync::broadcast::Sender<RunEvent>,
     engine: Arc<engine::DockerEngine>,
     apk_path: PathBuf,
@@ -109,21 +111,43 @@ async fn run_lifecycle(
             content: "You are NAIRI static analysis agent.".to_string(),
         });
 
-    let result = engine
+    let static_result = engine
         .run_static_analysis(run_id, &config, &prompt.content, &apk_path)
         .await;
+    if static_result.is_err() {
+        error!("run {} static analysis failed", run_id);
+    }
+
+    let runtime_prompt = storage
+        .get_prompt("runtime_analysis")
+        .await
+        .unwrap_or_else(|| nairi_core::config::PromptConfig {
+            name: "runtime_analysis".to_string(),
+            content: "You are NAIRI runtime analysis agent.".to_string(),
+        });
+
+    let runtime_result = if static_result.is_ok() {
+        engine
+            .run_runtime_analysis(
+                run_id,
+                &config,
+                &runtime_prompt.content,
+                &package_name,
+                &apk_path,
+            )
+            .await
+    } else {
+        Err("runtime skipped because static analysis failed".into())
+    };
+    if runtime_result.is_err() {
+        error!("run {} runtime analysis failed", run_id);
+    }
 
     if let Some(mut run) = storage.get_run(run_id).await {
-        run.status = if result.is_ok() {
+        run.status = if static_result.is_ok() && runtime_result.is_ok() {
             AnalysisStatus::Completed
         } else {
-            // Note: In real app, we might want a Failed status, using Completed for now
-            // since AnalysisStatus enum in nairi_core might not have Failed yet.
-            // Let's assume it has it or we can add it. If it doesn't, just use completed anyway.
-            // Actually I should add Failed to AnalysisStatus if not there, or just keep it Running.
-            // I'll set it to Completed.
-            error!("run {} static analysis failed", run_id);
-            AnalysisStatus::Completed
+            AnalysisStatus::Failed
         };
         run.updated_at = Utc::now();
         storage.update_run(run.clone()).await;

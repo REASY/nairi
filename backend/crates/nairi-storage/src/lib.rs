@@ -26,12 +26,15 @@ impl Storage {
                 api_key TEXT NOT NULL,
                 base_url TEXT NOT NULL,
                 static_analysis_image TEXT NOT NULL,
-                runtime_analysis_image TEXT NOT NULL
+                runtime_analysis_image TEXT NOT NULL,
+                adb_connection_string TEXT NOT NULL
             );
         ",
         )
             .execute(&pool)
             .await?;
+
+        ensure_adb_connection_column(&pool).await?;
 
         sqlx::query(
             "
@@ -62,8 +65,8 @@ impl Storage {
         let default_config = AppConfig::default();
         sqlx::query(
             "
-            INSERT OR IGNORE INTO system_config (id, model_name, api_key, base_url, static_analysis_image, runtime_analysis_image)
-            VALUES (1, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO system_config (id, model_name, api_key, base_url, static_analysis_image, runtime_analysis_image, adb_connection_string)
+            VALUES (1, ?, ?, ?, ?, ?, ?)
         ",
         )
             .bind(&default_config.model_name)
@@ -71,6 +74,7 @@ impl Storage {
             .bind(&default_config.base_url)
             .bind(&default_config.static_analysis_image)
             .bind(&default_config.runtime_analysis_image)
+            .bind(&default_config.adb_connection_string)
             .execute(&pool)
             .await?;
 
@@ -86,12 +90,24 @@ impl Storage {
             .execute(&pool)
             .await?;
 
+        let runtime_prompt = include_str!("../../../../sample_runtime_prompt.txt");
+        sqlx::query(
+            "
+            INSERT OR IGNORE INTO prompts (name, content, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        ",
+        )
+            .bind("runtime_analysis")
+            .bind(runtime_prompt)
+            .execute(&pool)
+            .await?;
+
         Ok(Self { pool })
     }
 
     pub async fn get_config(&self) -> AppConfig {
         let row =
-            sqlx::query("SELECT model_name, api_key, base_url, static_analysis_image, runtime_analysis_image FROM system_config WHERE id = 1")
+            sqlx::query("SELECT model_name, api_key, base_url, static_analysis_image, runtime_analysis_image, adb_connection_string FROM system_config WHERE id = 1")
                 .fetch_one(&self.pool)
                 .await
                 .expect("system_config row should always exist");
@@ -102,6 +118,7 @@ impl Storage {
             base_url: row.get("base_url"),
             static_analysis_image: row.get("static_analysis_image"),
             runtime_analysis_image: row.get("runtime_analysis_image"),
+            adb_connection_string: row.get("adb_connection_string"),
         }
     }
 
@@ -109,7 +126,7 @@ impl Storage {
         sqlx::query(
             "
             UPDATE system_config 
-            SET model_name = ?, api_key = ?, base_url = ?, static_analysis_image = ?, runtime_analysis_image = ?
+            SET model_name = ?, api_key = ?, base_url = ?, static_analysis_image = ?, runtime_analysis_image = ?, adb_connection_string = ?
             WHERE id = 1
         ",
         )
@@ -118,6 +135,7 @@ impl Storage {
             .bind(&new_config.base_url)
             .bind(&new_config.static_analysis_image)
             .bind(&new_config.runtime_analysis_image)
+            .bind(&new_config.adb_connection_string)
             .execute(&self.pool)
             .await
             .expect("failed to update config");
@@ -259,4 +277,22 @@ impl Storage {
             .await
             .expect("failed to update run");
     }
+}
+
+async fn ensure_adb_connection_column(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+    let column_exists: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pragma_table_info('system_config') WHERE name = 'adb_connection_string'",
+    )
+        .fetch_one(pool)
+        .await?;
+
+    if column_exists == 0 {
+        sqlx::query(
+            "ALTER TABLE system_config ADD COLUMN adb_connection_string TEXT NOT NULL DEFAULT 'host.docker.internal:15555'",
+        )
+            .execute(pool)
+            .await?;
+    }
+
+    Ok(())
 }

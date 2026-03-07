@@ -67,6 +67,11 @@ RUN npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}" && \
 
 COPY docker/images/runtime-analysis/.agents/skills/ /root/.agents/skills/
 COPY docker/images/runtime-analysis/ebpf /ebpf
+COPY docker/images/runtime-analysis/runtime /runtime
+
+RUN chmod +x /ebpf/runners/run_trace_experiments.sh \
+    /runtime/run_runtime_analysis.sh \
+    /runtime/ui_explorer.py
 
 ENV GEMINI_API_KEY=""
 ENV GOOGLE_GEMINI_BASE_URL=""

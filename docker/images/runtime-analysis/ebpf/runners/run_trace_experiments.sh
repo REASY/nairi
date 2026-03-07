@@ -24,6 +24,7 @@ Options:
   --device <serial>           adb serial (default: localhost:15555)
   --apk <path.apk>            Uninstall package, then install this APK before experiment 1
   --startup-wait <sec>        Wait before launch after traces start (default: 4)
+  --phase-seconds <sec>       Total auto-stop budget across all phases (default: 0 = manual Ctrl+C)
   --out-dir <dir>             Local output dir (default: runs/trace_exp_<ts>_uid<uid>)
   --probes-dir <dir>          Local dir with trace_*.bt probes
                               (default: <repo>/backend/runtime/ebpf/probes)
@@ -73,6 +74,9 @@ PACKAGE=""
 DEVICE="localhost:15555"
 APK_PATH=""
 STARTUP_WAIT=4
+PHASE_SECONDS=0
+PHASE_SECONDS_FRESH=0
+PHASE_SECONDS_SECOND=0
 OUT_DIR=""
 PROBES_DIR="${REPO_ROOT}/backend/runtime/ebpf/probes"
 SAMPLING=0
@@ -100,6 +104,8 @@ while [[ $# -gt 0 ]]; do
       APK_PATH="$2"; shift 2 ;;
     --startup-wait)
       STARTUP_WAIT="$2"; shift 2 ;;
+    --phase-seconds)
+      PHASE_SECONDS="$2"; shift 2 ;;
     --out-dir)
       OUT_DIR="$2"; shift 2 ;;
     --probes-dir)
@@ -146,6 +152,10 @@ fi
 
 if ! [[ "$STARTUP_WAIT" =~ ^[0-9]+$ ]]; then
   echo "--startup-wait must be numeric" >&2
+  exit 1
+fi
+if ! [[ "$PHASE_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "--phase-seconds must be numeric" >&2
   exit 1
 fi
 if [[ -n "$APK_PATH" && ! -f "$APK_PATH" ]]; then
@@ -359,6 +369,7 @@ launch_app() {
 
 capture_phase_remote() {
   local phase="$1"
+  local phase_seconds="${2:-0}"
   local remote_phase_dir="${REMOTE_EXP_DIR%/}/${phase}"
 
   local remote_script
@@ -408,7 +419,14 @@ pids="\$pids \$!"
 
 echo "uid=$UID_TARGET phase=$phase bpftrace=\$BPFTRACE_BIN pids=\$pids started_at=\$(date -Iseconds)" > '$remote_phase_dir/_remote_meta.txt'
 echo "nofile_before=\$NOFILE_BEFORE nofile_after=\$NOFILE_AFTER" >> '$remote_phase_dir/_remote_meta.txt'
-wait
+echo "phase_seconds=$phase_seconds" >> '$remote_phase_dir/_remote_meta.txt'
+if [ "$phase_seconds" -gt 0 ]; then
+  sleep "$phase_seconds"
+  for p in \$pids; do kill -INT "\$p" 2>/dev/null || true; done
+  for p in \$pids; do wait "\$p" 2>/dev/null || true; done
+else
+  wait
+fi
 SCRIPT
 )
 
@@ -432,6 +450,9 @@ package=$PACKAGE
 device=$DEVICE
 apk_path=$APK_PATH
 startup_wait=$STARTUP_WAIT
+phase_seconds_total=$PHASE_SECONDS
+phase_seconds_fresh=$PHASE_SECONDS_FRESH
+phase_seconds_second=$PHASE_SECONDS_SECOND
 sampling=$SAMPLING
 enable_stack=$ENABLE_STACK
 stack_depth=$STACK_DEPTH
@@ -452,6 +473,7 @@ META
 
 run_phase() {
   local phase="$1"
+  local phase_seconds="$2"
   local launcher_pid=""
   local rc=0
   local phase_interrupted=0
@@ -467,13 +489,28 @@ run_phase() {
     launch_app "$phase"
   fi
 
-  echo "[$phase] capturing... press Ctrl+C to stop this phase."
-  trap 'phase_interrupted=1' INT
-  set +e
-  capture_phase_remote "$phase"
-  rc=$?
-  set -e
-  trap - INT
+  if [[ "$phase_seconds" -gt 0 ]]; then
+    echo "[$phase] capturing... auto-stop after ${phase_seconds}s."
+    set +e
+    capture_phase_remote "$phase" "$phase_seconds"
+    rc=$?
+    set -e
+  elif [[ "$PHASE_SECONDS" -gt 0 ]]; then
+    echo "[$phase] skipping capture because total phase budget was exhausted."
+    if [[ -n "$launcher_pid" ]]; then
+      kill "$launcher_pid" 2>/dev/null || true
+      wait "$launcher_pid" 2>/dev/null || true
+    fi
+    return 0
+  else
+    echo "[$phase] capturing... press Ctrl+C to stop this phase."
+    trap 'phase_interrupted=1' INT
+    set +e
+    capture_phase_remote "$phase"
+    rc=$?
+    set -e
+    trap - INT
+  fi
 
   if [[ "$phase_interrupted" -eq 1 ]]; then
     if [[ "$rc" -eq 0 ]]; then
@@ -502,18 +539,35 @@ run_phase() {
   fi
 }
 
+if [[ "$PHASE_SECONDS" -gt 0 ]]; then
+  if [[ "$PHASE_SECONDS" -eq 1 ]]; then
+    PHASE_SECONDS_FRESH=1
+    PHASE_SECONDS_SECOND=0
+  else
+    PHASE_SECONDS_FRESH=$((PHASE_SECONDS / 2))
+    PHASE_SECONDS_SECOND=$((PHASE_SECONDS - PHASE_SECONDS_FRESH))
+    if [[ "$PHASE_SECONDS_FRESH" -eq 0 ]]; then
+      PHASE_SECONDS_FRESH=1
+      PHASE_SECONDS_SECOND=$((PHASE_SECONDS - 1))
+    fi
+  fi
+fi
+
 write_meta
 
 echo "UID: $UID_TARGET"
 echo "Local out dir: $OUT_DIR"
 echo "Remote out dir (in chroot): $REMOTE_EXP_DIR"
 echo "Transport: $CHROOT_TRANSPORT"
+if [[ "$PHASE_SECONDS" -gt 0 ]]; then
+  echo "Phase budget total: ${PHASE_SECONDS}s (fresh_launch=${PHASE_SECONDS_FRESH}s, second_launch=${PHASE_SECONDS_SECOND}s)"
+fi
 
 echo "Experiment 1 (fresh_launch): run right after reinstall for best signal."
-run_phase "fresh_launch"
+run_phase "fresh_launch" "$PHASE_SECONDS_FRESH"
 
 echo "Experiment 2 (second_launch): force-stop + launch again."
-run_phase "second_launch"
+run_phase "second_launch" "$PHASE_SECONDS_SECOND"
 
 echo "All done."
 if [[ "$NO_PULL" -eq 0 ]]; then

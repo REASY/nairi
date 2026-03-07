@@ -8,6 +8,7 @@ interface ConfigPayload {
         base_url: string;
         static_analysis_image: string;
         runtime_analysis_image: string;
+        adb_connection_string: string;
     };
 }
 
@@ -25,7 +26,8 @@ export default function ConfigView() {
         api_key: "",
         base_url: "",
         static_analysis_image: "",
-        runtime_analysis_image: ""
+        runtime_analysis_image: "",
+        adb_connection_string: ""
     });
     const [isLoading, setIsLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -130,6 +132,16 @@ export default function ConfigView() {
                     value={config.runtime_analysis_image}
                     onChange={(e) => setConfig({...config, runtime_analysis_image: e.target.value})}
                     placeholder="e.g. nairi/runtime-analysis:dev"
+                />
+            </div>
+
+            <div className="form-group">
+                <label>ADB Connection String</label>
+                <input
+                    type="text"
+                    value={config.adb_connection_string}
+                    onChange={(e) => setConfig({...config, adb_connection_string: e.target.value})}
+                    placeholder="e.g. host.docker.internal:15555"
                 />
             </div>
 
