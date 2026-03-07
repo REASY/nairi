@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {FileText} from "lucide-react";
+import {FileText, CheckCircle, AlertCircle} from "lucide-react";
 import Markdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
@@ -8,13 +8,14 @@ export default function PromptsView() {
     const [prompt, setPrompt] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`)
+        fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`, {credentials: "include"})
             .then(res => {
-                if (!res.ok) throw new Error("Prompt fetch failed");
+                if (!res.ok) throw new Error(`Prompt fetch failed: ${res.status}`);
                 return res.json();
             })
             .then(data => {
@@ -28,16 +29,22 @@ export default function PromptsView() {
     }, []);
 
     const handleSave = async () => {
+        setSaveStatus("saving");
         try {
-            await fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`, {
+            const res = await fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({content: prompt})
             });
+            if (!res.ok) throw new Error(`Failed to save prompt: ${res.status}`);
             setIsEditing(false);
-            alert('Prompt saved!');
+            setSaveStatus("success");
+            setTimeout(() => setSaveStatus("idle"), 3000);
         } catch (err) {
             console.error(err);
+            setSaveStatus("error");
+            setTimeout(() => setSaveStatus("idle"), 3000);
         }
     };
 
@@ -52,11 +59,29 @@ export default function PromptsView() {
                 </div>
                 <div>
                     {!isEditing ? (
-                        <button className="btn-secondary" onClick={() => setIsEditing(true)}>Edit Prompt</button>
+                        <div style={{display: "flex", alignItems: "center", gap: "12px"}}>
+                            {saveStatus === "success" && <span style={{
+                                color: "var(--accent-green)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                fontSize: "14px"
+                            }}><CheckCircle size={16}/> Saved</span>}
+                            {saveStatus === "error" && <span style={{
+                                color: "var(--accent-pink)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                fontSize: "14px"
+                            }}><AlertCircle size={16}/> Error</span>}
+                            <button className="btn-secondary" onClick={() => setIsEditing(true)}>Edit Prompt</button>
+                        </div>
                     ) : (
                         <div style={{display: "flex", gap: "8px"}}>
                             <button className="btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={handleSave}>Save Changes</button>
+                            <button className="btn-primary" onClick={handleSave} disabled={saveStatus === "saving"}>
+                                {saveStatus === "saving" ? "Saving..." : "Save Changes"}
+                            </button>
                         </div>
                     )}
                 </div>

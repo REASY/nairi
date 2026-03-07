@@ -1,17 +1,13 @@
 import {useEffect, useState} from "react";
-import {Settings} from "lucide-react";
+import {Settings, CheckCircle, AlertCircle} from "lucide-react";
 
 interface ConfigPayload {
     config: {
         model_name: string;
         api_key: string;
         base_url: string;
-    };
-}
-
-interface PromptPayload {
-    prompt: {
-        content: string;
+        static_analysis_image: string;
+        runtime_analysis_image: string;
     };
 }
 
@@ -24,24 +20,23 @@ async function parseJsonResponse<T>(response: Response, errorPrefix: string): Pr
 }
 
 export default function ConfigView() {
-    const [config, setConfig] = useState({model_name: "", api_key: "", base_url: ""});
-    const [prompt, setPrompt] = useState("");
+    const [config, setConfig] = useState({
+        model_name: "",
+        api_key: "",
+        base_url: "",
+        static_analysis_image: "",
+        runtime_analysis_image: ""
+    });
     const [isLoading, setIsLoading] = useState(true);
+    const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
     useEffect(() => {
-        Promise.all([
-            fetch(`${API_BASE_URL}/api/v1/config`, {credentials: "include"}).then((res) =>
-                parseJsonResponse<ConfigPayload>(res, "Failed to load config"),
-            ),
-            fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`, {
-                credentials: "include",
-            }).then((res) => parseJsonResponse<PromptPayload>(res, "Failed to load prompt")),
-        ])
-            .then(([configData, promptData]) => {
+        fetch(`${API_BASE_URL}/api/v1/config`, {credentials: "include"})
+            .then((res) => parseJsonResponse<ConfigPayload>(res, "Failed to load config"))
+            .then((configData) => {
                 setConfig(configData.config);
-                setPrompt(promptData.prompt.content);
                 setIsLoading(false);
             })
             .catch((err) => {
@@ -51,31 +46,27 @@ export default function ConfigView() {
     }, [API_BASE_URL]);
 
     const handleSave = async () => {
+        setSaveStatus("saving");
         try {
-            const [configResponse, promptResponse] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/v1/config`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify(config),
-                }),
-                fetch(`${API_BASE_URL}/api/v1/prompts/static_analysis`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({content: prompt}),
-                }),
-            ]);
+            const configResponse = await fetch(`${API_BASE_URL}/api/v1/config`, {
+                method: "POST",
+                credentials: "include",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(config),
+            });
 
-            if (!configResponse.ok || !promptResponse.ok) {
+            if (!configResponse.ok) {
                 throw new Error(
-                    `Save failed: config=${configResponse.status}, prompt=${promptResponse.status}`,
+                    `Save failed: config=${configResponse.status}`,
                 );
             }
 
-            alert("Config saved!");
+            setSaveStatus("success");
+            setTimeout(() => setSaveStatus("idle"), 3000);
         } catch (err) {
             console.error(err);
+            setSaveStatus("error");
+            setTimeout(() => setSaveStatus("idle"), 3000);
         }
     };
 
@@ -120,29 +111,47 @@ export default function ConfigView() {
                 />
             </div>
 
-            <div className="form-group" style={{marginTop: "16px"}}>
-                <label>Static Analysis Engine Prompt</label>
-                <textarea
-                    rows={12}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        background: "rgba(0, 0, 0, 0.4)",
-                        border: "1px solid var(--border-glass)",
-                        color: "var(--text-primary)",
-                        borderRadius: "8px",
-                        fontFamily: "monospace",
-                        resize: "vertical",
-                        marginTop: "8px",
-                    }}
+            <h2 style={{marginTop: "32px", marginBottom: "16px"}}>Docker Infrastructure</h2>
+
+            <div className="form-group">
+                <label>Static Analysis Docker Image</label>
+                <input
+                    type="text"
+                    value={config.static_analysis_image}
+                    onChange={(e) => setConfig({...config, static_analysis_image: e.target.value})}
+                    placeholder="e.g. nairi/static-analysis:dev"
                 />
             </div>
 
-            <button className="btn-primary" onClick={handleSave} style={{marginTop: "16px"}}>
-                Save Configuration
-            </button>
+            <div className="form-group">
+                <label>Runtime Analysis Docker Image</label>
+                <input
+                    type="text"
+                    value={config.runtime_analysis_image}
+                    onChange={(e) => setConfig({...config, runtime_analysis_image: e.target.value})}
+                    placeholder="e.g. nairi/runtime-analysis:dev"
+                />
+            </div>
+
+            <div style={{display: "flex", alignItems: "center", gap: "16px", marginTop: "16px"}}>
+                <button className="btn-primary" onClick={handleSave} disabled={saveStatus === "saving"}>
+                    {saveStatus === "saving" ? "Saving..." : "Save Configuration"}
+                </button>
+                {saveStatus === "success" && <span style={{
+                    color: "var(--accent-green)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "14px"
+                }}><CheckCircle size={16}/> Saved successfully</span>}
+                {saveStatus === "error" && <span style={{
+                    color: "var(--accent-pink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "14px"
+                }}><AlertCircle size={16}/> Error saving config</span>}
+            </div>
         </div>
     );
 }
