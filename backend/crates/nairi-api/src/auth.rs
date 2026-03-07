@@ -44,7 +44,7 @@ impl AuthSettings {
             .filter(|value| !value.is_empty());
 
         let post_login_redirect_url = std::env::var("AUTH_POST_LOGIN_REDIRECT_URL")
-            .unwrap_or_else(|_| "http://localhost:3000/".to_string());
+            .unwrap_or_else(|_| "http://localhost:5173/".to_string());
 
         let session_cookie_name =
             std::env::var("SESSION_COOKIE_NAME").unwrap_or_else(|_| "nairi_session".to_string());

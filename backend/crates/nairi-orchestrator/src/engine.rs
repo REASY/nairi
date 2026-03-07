@@ -69,6 +69,16 @@ impl DockerEngine {
 
     pub async fn get_report(&self, run_id: Uuid) -> Option<String> {
         let reports_dir = self.workspace_root.join(run_id.to_string()).join("reports");
+
+        // Prefer the specific static analysis report if it exists
+        let specific_report = reports_dir.join("static-analysis-report.md");
+        if specific_report.exists() {
+            if let Ok(content) = tokio::fs::read_to_string(&specific_report).await {
+                return Some(content);
+            }
+        }
+
+        // Fallback to any markdown file
         let mut entries = tokio::fs::read_dir(&reports_dir).await.ok()?;
         while let Ok(Some(entry)) = entries.next_entry().await {
             let path = entry.path();

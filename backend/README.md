@@ -17,7 +17,7 @@ GOOGLE_OAUTH_CLIENT_ID=... \
 GOOGLE_OAUTH_CLIENT_SECRET=... \
 GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8080/api/v1/auth/google/callback \
 SESSION_SIGNING_KEY=replace-with-long-random-secret \
-AUTH_POST_LOGIN_REDIRECT_URL=http://localhost:3000/ \
+AUTH_POST_LOGIN_REDIRECT_URL=http://localhost:5173/ \
 cargo run -p nairi-server
 ```
 
@@ -31,7 +31,8 @@ Server defaults to:
 2. `GOOGLE_OAUTH_CLIENT_SECRET` (required)
 3. `GOOGLE_OAUTH_REDIRECT_URI` (required)
 4. `SESSION_SIGNING_KEY` (required)
-5. `AUTH_POST_LOGIN_REDIRECT_URL` (optional, default `http://localhost:3000/`)
+5. `AUTH_POST_LOGIN_REDIRECT_URL` (optional, default `http://localhost:5173/`): Where to redirect the user after a
+   successful login.
 6. `ALLOWED_ORIGINS` (optional, comma-separated list for CORS + credentials)
 7. `SESSION_COOKIE_SECURE` (optional, default true on HTTPS redirects, false on HTTP)
 8. `SESSION_COOKIE_NAME` (optional, default `nairi_session`)
