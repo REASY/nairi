@@ -4,53 +4,62 @@
 
 1. **Frontend Application (TypeScript + React)**
    1. Provides APK upload and analysis start UI.
-   2. Shows live stage progress and final reports.
+   2. Provides configuration UI for runtime/static infrastructure settings.
+   3. Shows live stage progress and final reports.
 2. **Backend API (Rust + Axum)**
    1. Exposes APIs for sample intake, run control, and report retrieval.
    2. Hosts orchestration endpoints and event streams.
-3. **Sample Intake**
+3. **Configuration Service**
+   1. Stores active configuration profiles.
+   2. Validates configured static-analysis Docker image and ADB connection target.
+   3. Resolves immutable run configuration snapshots.
+4. **Sample Intake**
    1. Receives APK and metadata.
    2. Computes hashes and deduplicates samples.
-4. **AI Agent Controller**
+5. **AI Agent Controller**
    1. Builds run plan from sample and policy profile.
    2. Orchestrates stage execution and branch decisions.
    3. Logs decisions, rationale summaries, and outcomes.
-5. **Analysis Orchestrator**
+6. **Analysis Orchestrator**
    1. Creates and schedules analysis runs.
    2. Coordinates static and runtime stages.
-6. **Static Analysis Engine**
+7. **Static Analysis Engine**
    1. Uses `apktool` for decompile and manifest extraction.
    2. Uses headless `Ghidra` for native library analysis.
-7. **Runtime Analysis Engine**
+8. **Runtime Analysis Engine**
    1. Starts isolated `redroid` instance.
    2. Installs and launches app.
    3. Drives app behavior stimulation.
-8. **Instrumentation Layer**
+9. **Instrumentation Layer**
    1. Frida Java/native hooks.
    2. eBPF probes for kernel-level telemetry.
-9. **Network Inspection Layer**
+10. **Network Inspection Layer**
    1. MITM proxy routing.
    2. TLS/HTTP capture under policy.
-10. **Patch/Rebuild Service**
+11. **Patch/Rebuild Service**
    1. Pinning bypass attempts.
    2. Rebuild, resign, redeploy workflow.
-11. **Reporting and Intelligence Service**
+12. **Reporting and Intelligence Service**
    1. Correlation and risk scoring.
    2. Human + machine output.
-12. **Evidence Store**
+13. **Evidence Store**
    1. Immutable artifacts and logs.
 
 ## 2. Architecture Flow
 
-1. User uploads APK in frontend (TypeScript + React) and starts `Analyse`.
-2. Backend API (Rust + Axum) receives intake request and registers `sample_id`.
-3. AI Agent Controller creates run plan and stage graph.
-4. Orchestrator runs static stage and emits baseline indicators.
-5. Runtime stage boots new sandbox and executes dynamic instrumentation.
-6. MITM layer captures network behavior.
-7. If pinning blocks inspection, AI agent triggers bypass flow and runtime stage repeats.
-8. Report service correlates evidence into final intelligence output.
-9. Backend streams status and results to frontend UI.
+1. User configures required settings in frontend:
+   1. Static analysis Docker image (`apktool` + `Ghidra` pre-installed).
+   2. ADB device connection string.
+2. Backend API persists configuration and triggers validation through Configuration Service.
+3. User uploads APK in frontend and starts `Analyse`.
+4. Backend API receives intake request and registers `sample_id`.
+5. AI Agent Controller resolves active run configuration snapshot and creates run plan.
+6. Orchestrator runs static stage in configured Docker image and emits baseline indicators.
+7. Runtime stage connects via configured ADB target, boots sandbox, and executes dynamic instrumentation.
+8. MITM layer captures network behavior.
+9. If pinning blocks inspection, AI agent triggers bypass flow and runtime stage repeats.
+10. Report service correlates evidence into final intelligence output.
+11. Backend streams status and results to frontend UI.
 
 ## 3. Deployment Constraints
 

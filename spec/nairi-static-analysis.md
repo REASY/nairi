@@ -6,6 +6,7 @@ Inputs:
 
 1. Raw APK file.
 2. Optional context metadata (source, campaign, tags).
+3. Resolved run configuration profile with static analysis Docker image reference.
 
 Outputs:
 
@@ -17,11 +18,12 @@ Outputs:
 ## 2. Processing Steps
 
 1. Validate APK and compute hashes.
-2. Decompile with `apktool`.
-3. Parse `AndroidManifest.xml` and resource metadata.
-4. Extract `lib/**` native binaries.
-5. Run headless Ghidra analysis scripts.
-6. Apply static detection rules and create indicators.
+2. Resolve and validate configured static-analysis Docker image.
+3. Decompile with `apktool`.
+4. Parse `AndroidManifest.xml` and resource metadata.
+5. Extract `lib/**` native binaries.
+6. Run headless Ghidra analysis scripts.
+7. Apply static detection rules and create indicators.
 
 ## 3. Detection Categories
 
@@ -41,3 +43,11 @@ Outputs:
 3. Native library inventory by ABI.
 4. Symbol/import/string extraction outputs.
 5. Rule hits with evidence references.
+
+## 5. Execution Environment Contract
+
+1. Static analysis must run in configured Docker image.
+2. Configured image must include:
+   1. `apktool` executable.
+   2. Ghidra headless analysis tooling.
+3. Toolchain validation failure must block analysis start.

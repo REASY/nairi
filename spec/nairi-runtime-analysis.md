@@ -5,6 +5,7 @@
 1. Use one isolated `redroid` instance per analysis run.
 2. Emulator image includes required kernel/eBPF capabilities.
 3. Environment is sandboxed with controlled network routing.
+4. Android target is selected via configured `adb` connection string.
 
 ## 2. Frida Instrumentation Scope
 
@@ -41,13 +42,14 @@ Each event must include:
 
 ## 5. Runtime Workflow
 
-1. Start clean emulator instance.
-2. Install APK and launch app.
-3. Attach Frida hooks.
-4. Start eBPF collectors.
-5. Execute behavior stimulation plan.
-6. Persist events and artifacts.
-7. Stop and destroy emulator.
+1. Resolve configured ADB connection string for target.
+2. Start clean emulator instance.
+3. Install APK and launch app.
+4. Attach Frida hooks.
+5. Start eBPF collectors.
+6. Execute behavior stimulation plan.
+7. Persist events and artifacts.
+8. Stop and destroy emulator.
 
 ## 6. Current eBPF Script Baseline
 

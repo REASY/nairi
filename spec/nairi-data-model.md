@@ -11,24 +11,35 @@
    1. `run_id`, `sample_id`
    2. `env_id`, `profile_id`
    3. `start_ts`, `end_ts`, `status`
-3. `Observation`
+3. `ConfigurationProfile`
+   1. `profile_id`, `name`, `is_active`
+   2. `static_analysis_image`
+   3. `adb_connection_string`
+   4. `validation_status`, `validated_at`
+   5. `updated_by`, `updated_at`
+4. `RunConfigSnapshot`
+   1. `run_id`, `profile_id`
+   2. `static_analysis_image`
+   3. `adb_connection_string`
+   4. `resolved_at`
+5. `Observation`
    1. `obs_id`, `run_id`
    2. `timestamp`, `source`, `type`
    3. `pid`, `tid`, `uid`, `process`, `package`
    4. `payload` (source-specific JSON)
-4. `Artifact`
+6. `Artifact`
    1. `artifact_id`, `run_id`, `kind`, `path`
    2. `sha256`, `created_ts`, `retention_class`
-5. `Indicator`
+7. `Indicator`
    1. `indicator_id`, `run_id`, `rule_id`
    2. `severity`, `confidence`
    3. `evidence_refs[]`
-6. `AgentDecision`
+8. `AgentDecision`
    1. `decision_id`, `run_id`, `timestamp`
    2. `decision_type`, `rationale_summary`
    3. `input_evidence_refs[]`
    4. `action`, `outcome`, `status`
-7. `Report`
+9. `Report`
    1. `report_id`, `run_id`
    2. `risk_score`, `verdict`, `ioc_refs[]`
 

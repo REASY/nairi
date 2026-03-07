@@ -19,18 +19,23 @@ These choices are normative for MVP and production baseline unless superseded by
 
 1. **Web UI Layer (Frontend, TypeScript + React)**
    1. APK upload and `Analyse` initiation.
-   2. Live run status and stage timeline.
-   3. Final report and artifact navigation.
+   2. Configuration UI for static-analysis Docker image and ADB connection string.
+   3. Live run status and stage timeline.
+   4. Final report and artifact navigation.
 2. **API and Orchestration Layer (Backend, Rust + Axum)**
    1. Authenticated API endpoints for intake, run control, and report retrieval.
-   2. Orchestration integration for AI-driven stage execution.
-   3. Event streaming APIs for real-time status updates.
+   2. Configuration profile APIs (store/validate/select active profile).
+   3. Orchestration integration for AI-driven stage execution.
+   4. Event streaming APIs for real-time status updates.
 
 ## 4. API Contract and Interop Requirements
 
 1. Backend APIs must expose stable versioned contracts.
 2. Frontend API clients must be typed from shared API schema artifacts.
 3. Request/response payloads must support run correlation IDs and evidence IDs.
+4. Config APIs must support validation endpoints for:
+   1. Static-analysis Docker image toolchain checks.
+   2. ADB target connection checks.
 
 ## 5. Reliability and Performance Expectations
 

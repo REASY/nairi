@@ -81,8 +81,9 @@ The AI agent integrates with:
 1. Orchestrator APIs.
 2. Static engine toolchain (`apktool`, `Ghidra` scripts).
 3. Runtime pipeline (redroid, Frida, eBPF).
-4. MITM and pinning bypass service.
-5. Reporting and evidence store.
+4. Configuration service (static-analysis image + ADB connection profile).
+5. MITM and pinning bypass service.
+6. Reporting and evidence store.
 
 ## 8. Failure Handling
 
@@ -90,3 +91,10 @@ The AI agent integrates with:
 2. Stage skip only when policy permits and must be declared in report.
 3. Automatic run termination on security policy violation.
 4. Evidence preservation on failure for forensic replay.
+
+## 9. Configuration Inputs
+
+1. Agent run planning must consume the resolved active configuration profile.
+2. Static-stage execution environment must use configured Docker image with required toolchain.
+3. Runtime-stage target selection must use configured ADB connection string.
+4. Missing/invalid required configuration must fail fast before stage execution.

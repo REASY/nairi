@@ -20,6 +20,9 @@ NAIRI is an automated malware analysis system for Android applications, focused 
    3. HTTPS behavior through MITM interception.
    4. Certificate pinning bypass and post-bypass behavior.
 4. Deliver autonomous, single-action analysis where users upload an APK and press `Analyse`.
+5. Provide operator configuration for required analysis infrastructure inputs:
+   1. Static-analysis Docker image (`apktool` + `Ghidra`).
+   2. ADB connection string for Android target.
 
 ## 3. Non-Goals (Initial Version)
 

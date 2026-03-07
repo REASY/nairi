@@ -4,8 +4,11 @@
 
 1. **MVP-1: Static Baseline**
    1. Sample intake.
-   2. `apktool` decompilation and manifest/component parser.
-   3. Native extraction and basic Ghidra automation.
+   2. Configuration UI/API for:
+      1. Static analysis Docker image.
+      2. ADB connection string.
+   3. `apktool` decompilation and manifest/component parser.
+   4. Native extraction and basic Ghidra automation.
 2. **MVP-2: Dynamic Core**
    1. redroid orchestration.
    2. Frida hook pipeline.
@@ -32,6 +35,8 @@
 5. Final report is reproducible from immutable artifact set and includes risk verdict plus IoCs.
 6. NAIRI completes full analysis from single user action without manual stage orchestration.
 7. NAIRI provides machine-readable decision logs for each autonomous branch.
+8. NAIRI blocks analysis when required configuration is missing/invalid.
+9. NAIRI runs static stage using configured Docker image and runtime stage using configured ADB target.
 
 ## 3. Exit Conditions per Phase
 

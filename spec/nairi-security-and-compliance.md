@@ -17,6 +17,7 @@
 1. Hash all stored artifacts for integrity checks.
 2. Apply retention classes to sensitive captures.
 3. Restrict access to raw payloads and decrypted traffic artifacts.
+4. Protect configuration profiles and connection targets with access control and audit logging.
 
 ## 4. Audit and Traceability
 
