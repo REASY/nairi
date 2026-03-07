@@ -1,0 +1,59 @@
+name: nairi-dev
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: docker/images/backend-server/Dockerfile
+      args:
+        VERSION: "${VERSION:-dev}"
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+        COMMIT_SHA: "${COMMIT_SHA:-unknown}"
+        IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
+        IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
+        IMAGE_LICENSES: "${IMAGE_LICENSES:-Apache-2.0}"
+        IMAGE_AUTHORS: "${IMAGE_AUTHORS:-Artavazd Balaian <reasyu@gmail.com>}"
+    image: nairi/backend-server:dev
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: docker/images/frontend-web/Dockerfile
+      args:
+        VERSION: "${VERSION:-dev}"
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+        COMMIT_SHA: "${COMMIT_SHA:-unknown}"
+        IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
+        IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
+        IMAGE_LICENSES: "${IMAGE_LICENSES:-Apache-2.0}"
+        IMAGE_AUTHORS: "${IMAGE_AUTHORS:-Artavazd Balaian <reasyu@gmail.com>}"
+    image: nairi/frontend-web:dev
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  static-analysis:
+    build:
+      context: ../..
+      dockerfile: docker/images/static-analysis/Dockerfile
+      args:
+        APKTOOL_VERSION: "${APKTOOL_VERSION:-2.11.1}"
+        GHIDRA_VERSION: "${GHIDRA_VERSION:-}"
+        GHIDRA_RELEASE_DATE: "${GHIDRA_RELEASE_DATE:-}"
+        VERSION: "${VERSION:-dev}"
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+        COMMIT_SHA: "${COMMIT_SHA:-unknown}"
+        IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
+        IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
+        IMAGE_LICENSES: "${IMAGE_LICENSES:-Apache-2.0}"
+        IMAGE_AUTHORS: "${IMAGE_AUTHORS:-Artavazd Balaian <reasyu@gmail.com>}"
+    image: nairi/static-analysis:dev
+    profiles:
+      - tools
+    tty: true
+    stdin_open: true

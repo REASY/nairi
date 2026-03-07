@@ -1,0 +1,22 @@
+name: nairi-prod
+
+services:
+  backend:
+    image: ${NAIRI_BACKEND_IMAGE:-ghcr.io/reasy/nairi/backend-server}:${NAIRI_TAG:-latest}
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+
+  frontend:
+    image: ${NAIRI_FRONTEND_IMAGE:-ghcr.io/reasy/nairi/frontend-web}:${NAIRI_TAG:-latest}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  static-analysis:
+    image: ${NAIRI_STATIC_IMAGE:-ghcr.io/reasy/nairi/static-analysis}:${NAIRI_TAG:-latest}
+    profiles:
+      - tools
+
