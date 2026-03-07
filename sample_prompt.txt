@@ -1,0 +1,53 @@
+You are running inside NAIRI static-analysis container.
+
+  Hard requirements:
+  1. You MUST use all three skills
+  - apktool
+  - jadx
+  - ghidra-cli
+  2. Do not finish until each tool was executed successfully, or failure is documented with command + stderr.
+
+  Inputs:
+  - APK: /workspace/target.apk
+  - Output dir: /workspace/reports
+  - Work dir: /workspace/decompiled
+
+  Required workflow:
+  1. Tool checks:
+  - run: apktool --version
+  - run: jadx --version
+  - run: ghidra --version || ghidra-cli --version
+  2. APKTool phase:
+  - decode APK to /workspace/decompiled/apktool using force overwrite
+  - parse AndroidManifest.xml
+  - extract permissions, exported components, main activity, services, receivers, providers
+  3. JADX phase:
+  - decompile with deobfuscation to /workspace/decompiled/jadx
+  - find hardcoded URLs/domains/IPs/tokens/keys
+  - find cert pinning / TrustManager / OkHttp CertificatePinner usage
+  - find native library loading (System.loadLibrary / load)
+  4. Ghidra-CLI phase:
+  - set GHIDRA_INSTALL_DIR=/opt/ghidra
+  - import and analyze native .so libraries found in APK (at least top 3 largest by size)
+  - for each analyzed library, collect:
+    - function count
+    - suspicious imports/symbols (crypto, network, anti-debug, process/thread, syscall-related patterns)
+    - notable strings and potential C2 indicators
+  5. Cross-tool correlation:
+  - map Java native-load points (jadx) to actual .so findings (ghidra-cli)
+  - highlight mismatches or suspicious behavior
+
+  Deliverables:
+  1. /workspace/reports/static-analysis-report.md
+  2. /workspace/reports/static-analysis-findings.json
+  3. /workspace/reports/tool-execution-log.md
+
+  Report format (markdown):
+  - Executive Summary
+  - Skill Usage Checklist (apktool/jadx/ghidra-cli: PASS/FAIL with commands)
+  - Manifest Findings
+  - Java/Kotlin Findings (jadx)
+  - Native Findings (ghidra-cli)
+  - Indicators of Compromise (URLs, domains, IPs, cert artifacts, file paths)
+  - Risk Rating (Low/Medium/High/Critical) with rationale
+  - Limitations / Errors

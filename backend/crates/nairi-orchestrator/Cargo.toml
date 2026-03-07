@@ -9,4 +9,5 @@ nairi-storage = { path = "../nairi-storage" }
 chrono.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+serde.workspace = true
 uuid.workspace = true

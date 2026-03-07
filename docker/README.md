@@ -132,3 +132,20 @@ docker run --rm -it \
   nairi/runtime-analysis:dev \
   bash
 ```
+
+## Runtime Tunnel
+
+Before runtime analysis against remote Redroid, open SSH tunnel from host:
+
+```bash
+cp ops/ssh/ssh.config.example ops/ssh/ssh.config
+# edit ssh.config with your GCP host/user/key
+make runtime-tunnel-up
+```
+
+Check/stop tunnel:
+
+```bash
+make runtime-tunnel-status
+make runtime-tunnel-down
+```

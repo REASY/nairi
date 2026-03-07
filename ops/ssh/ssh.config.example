@@ -1,0 +1,15 @@
+Host redroid-gcp
+  HostName REPLACE_WITH_GCP_HOST
+  User REPLACE_WITH_SSH_USER
+  Port 22
+  IdentityFile REPLACE_WITH_PRIVATE_KEY_PATH
+
+  # Runtime stability/safety
+  ExitOnForwardFailure yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  StrictHostKeyChecking accept-new
+
+  # Redroid ADB on remote machine (adjust if different)
+  LocalForward 5555 127.0.0.1:5555
+

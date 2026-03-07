@@ -9,3 +9,13 @@ nairi-orchestrator = { path = "../nairi-orchestrator" }
 axum.workspace = true
 serde.workspace = true
 uuid.workspace = true
+serde_json.workspace = true
+futures-core = "0.3"
+tokio-stream = { workspace = true, features = ["sync"] }
+reqwest.workspace = true
+dashmap.workspace = true
+chrono.workspace = true
+jsonwebtoken.workspace = true
+base64.workspace = true
+sha2.workspace = true
+tracing.workspace = true

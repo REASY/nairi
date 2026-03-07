@@ -16,12 +16,58 @@ export interface CreateAnalysisResponse {
   run: AnalysisRun;
 }
 
+export interface AuthUser {
+    sub: string;
+    email: string;
+    name?: string | null;
+    picture?: string | null;
+}
+
+interface CurrentUserResponse {
+    user: AuthUser;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+
+function buildApiUrl(path: string): string {
+    return `${API_BASE_URL}${path}`;
+}
+
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    return fetch(buildApiUrl(path), {
+        ...init,
+        credentials: "include",
+    });
+}
+
+export function getGoogleLoginUrl(): string {
+    return buildApiUrl("/api/v1/auth/google/login");
+}
+
+export async function getCurrentUser(): Promise<AuthUser> {
+    const response = await apiFetch("/api/v1/auth/me");
+    if (!response.ok) {
+        throw new Error(`Failed to get current user: HTTP ${response.status}`);
+    }
+
+    const body = (await response.json()) as CurrentUserResponse;
+    return body.user;
+}
+
+export async function logoutCurrentUser(): Promise<void> {
+    const response = await apiFetch("/api/v1/auth/logout", {
+        method: "POST",
+    });
+
+    if (!response.ok && response.status !== 204) {
+        throw new Error(`Failed to logout: HTTP ${response.status}`);
+    }
+}
 
 export async function createAnalysis(
   payload: CreateAnalysisRequest,
 ): Promise<CreateAnalysisResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyses`, {
+    const response = await apiFetch("/api/v1/analyses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -37,7 +83,7 @@ export async function createAnalysis(
 }
 
 export async function getAnalysis(runId: string): Promise<AnalysisRun> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${runId}`);
+    const response = await apiFetch(`/api/v1/analyses/${runId}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch analysis: HTTP ${response.status}`);
   }

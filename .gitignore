@@ -6,3 +6,10 @@ target
 node_modules
 dist
 *.log
+
+# Local SSH tunnel configuration/secrets
+ops/ssh/*.config
+ops/ssh/*.pem
+ops/ssh/*.key
+ops/ssh/known_hosts
+ops/ssh/tunnel.sock

@@ -7,3 +7,14 @@ edition.workspace = true
 nairi-core = { path = "../nairi-core" }
 tokio.workspace = true
 uuid.workspace = true
+chrono = { workspace = true, optional = false }
+serde_json.workspace = true
+
+[dependencies.sqlx]
+version = "0.8"
+features = [
+    "sqlite",
+    "runtime-tokio",
+    "uuid",
+    "chrono"
+]

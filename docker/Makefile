@@ -30,7 +30,8 @@ COMMON_BUILD_ARGS := \
 	--build-arg IMAGE_AUTHORS="$(IMAGE_AUTHORS)"
 
 .PHONY: help build-backend build-frontend build-orchestrator build-static build-runtime build-all build-all-with-tools \
-	compose-dev-up compose-dev-tools-up compose-dev-down compose-prod-up compose-prod-down
+	compose-dev-up compose-dev-tools-up compose-dev-down compose-prod-up compose-prod-down \
+	runtime-tunnel-up runtime-tunnel-down runtime-tunnel-status
 
 help:
 	@echo "Targets:"
@@ -46,6 +47,9 @@ help:
 	@echo "  compose-dev-down        Stop dev stack"
 	@echo "  compose-prod-up         Start prod compose stack"
 	@echo "  compose-prod-down       Stop prod compose stack"
+	@echo "  runtime-tunnel-up       Start SSH tunnel to remote Redroid"
+	@echo "  runtime-tunnel-down     Stop SSH tunnel to remote Redroid"
+	@echo "  runtime-tunnel-status   Check SSH tunnel status"
 
 build-backend:
 	docker build \
@@ -127,3 +131,12 @@ compose-prod-up:
 
 compose-prod-down:
 	docker compose -f "$(MAKEFILE_DIR)/compose/docker-compose.prod.yml" down
+
+runtime-tunnel-up:
+	"$(MAKEFILE_DIR)/scripts/runtime/tunnel-up.sh"
+
+runtime-tunnel-down:
+	"$(MAKEFILE_DIR)/scripts/runtime/tunnel-down.sh"
+
+runtime-tunnel-status:
+	"$(MAKEFILE_DIR)/scripts/runtime/tunnel-status.sh"

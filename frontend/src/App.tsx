@@ -1,131 +1,214 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AnalysisRun, AnalysisStatus, createAnalysis, getAnalysis } from "./api";
+import {useEffect, useState} from "react";
+import {Routes, Route, NavLink} from "react-router-dom";
+import {ShieldAlert, Upload, Settings, Activity, FileText, LogOut} from "lucide-react";
+import ConfigView from "./pages/ConfigView";
+import UploadView from "./pages/UploadView";
+import PromptsView from "./pages/PromptsView";
+import {
+    AuthUser,
+    getCurrentUser,
+    getGoogleLoginUrl,
+    logoutCurrentUser,
+} from "./api";
 
-const TERMINAL_STATES: AnalysisStatus[] = ["completed", "failed"];
+type AuthState = "loading" | "authenticated" | "unauthenticated";
+
+function LoginScreen() {
+    const handleLogin = () => {
+        window.location.assign(getGoogleLoginUrl());
+    };
+
+    return (
+        <div className="main-content" style={{display: "grid", placeItems: "center"}}>
+            <div className="glass-panel" style={{maxWidth: "520px", width: "100%"}}>
+                <h1>Authentication Required</h1>
+                <p style={{marginBottom: "20px"}}>
+                    Sign in with your Google account to access NAIRI endpoints.
+                </p>
+                <button className="btn-primary" onClick={handleLogin}>
+                    Continue with Google
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default function App() {
-  const [packageName, setPackageName] = useState("");
-  const [runs, setRuns] = useState<AnalysisRun[]>([]);
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const activeRun = useMemo(
-    () => runs.find((run) => run.id === activeRunId) ?? null,
-    [activeRunId, runs],
-  );
+    const [authState, setAuthState] = useState<AuthState>("loading");
+    const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    if (!activeRunId) {
-      return;
-    }
+      let active = true;
 
-    const timer = window.setInterval(async () => {
-      try {
-        const latestRun = await getAnalysis(activeRunId);
-        setRuns((previous) =>
-          previous.map((run) => (run.id === latestRun.id ? latestRun : run)),
-        );
+      getCurrentUser()
+          .then((currentUser) => {
+              if (!active) return;
+              setUser(currentUser);
+              setAuthState("authenticated");
+          })
+          .catch(() => {
+              if (!active) return;
+              setUser(null);
+              setAuthState("unauthenticated");
+          });
 
-        if (TERMINAL_STATES.includes(latestRun.status)) {
-          window.clearInterval(timer);
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to refresh run status.";
-        setErrorMessage(message);
-      }
-    }, 2000);
+      return () => {
+          active = false;
+      };
+  }, []);
 
-    return () => window.clearInterval(timer);
-  }, [activeRunId]);
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
-    try {
-      const created = await createAnalysis({
-        package_name: packageName.trim(),
-      });
-      setRuns((previous) => [created.run, ...previous]);
-      setActiveRunId(created.run.id);
-      setPackageName("");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to start analysis run.";
-      setErrorMessage(message);
+    const handleLogout = async () => {
+        try {
+            await logoutCurrentUser();
     } finally {
-      setIsSubmitting(false);
+            setUser(null);
+            setAuthState("unauthenticated");
     }
-  }
+    };
 
-  return (
-    <main className="page">
-      <section className="panel">
-        <h1>NAIRI Console</h1>
-        <p>Upload APK in future UI. For now, submit package/sample name and run analysis.</p>
-
-        <form className="row" onSubmit={onSubmit}>
-          <input
-            placeholder="Package or sample name (e.g. com.example.malware)"
-            value={packageName}
-            onChange={(event) => setPackageName(event.target.value)}
-            required
-          />
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Starting..." : "Analyse"}
-          </button>
-        </form>
-
-        {errorMessage ? <p className="error">{errorMessage}</p> : null}
-      </section>
-
-      <section className="panel">
-        <h2>Active Run</h2>
-        {activeRun ? (
-          <dl className="details">
-            <div>
-              <dt>Run ID</dt>
-              <dd>{activeRun.id}</dd>
+    if (authState === "loading") {
+        return (
+            <div className="main-content" style={{display: "grid", placeItems: "center"}}>
+                <div className="glass-panel">
+                    <p>Checking session...</p>
+                </div>
             </div>
-            <div>
-              <dt>Package</dt>
-              <dd>{activeRun.package_name}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{activeRun.status}</dd>
-            </div>
-            <div>
-              <dt>Updated</dt>
-              <dd>{new Date(activeRun.updated_at).toLocaleString()}</dd>
-            </div>
-          </dl>
-        ) : (
-          <p>No active run.</p>
-        )}
-      </section>
+        );
+    }
 
-      <section className="panel">
-        <h2>Recent Runs</h2>
-        {runs.length === 0 ? (
-          <p>No runs started yet.</p>
-        ) : (
-          <ul className="runs">
-            {runs.map((run) => (
-              <li key={run.id}>
-                <button type="button" onClick={() => setActiveRunId(run.id)}>
-                  <span>{run.package_name}</span>
-                  <span>{run.status}</span>
-                  <span>{new Date(run.created_at).toLocaleTimeString()}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    if (authState === "unauthenticated") {
+        return <LoginScreen/>;
+    }
+
+    return (
+        <div className="app-layout">
+            <aside className="sidebar">
+                <div className="brand">
+                    <ShieldAlert size={32}/>
+                    <span>NAIRI</span>
+                </div>
+
+                <nav className="nav-links">
+                    <NavLink to="/" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
+                        <Upload size={20}/>
+                        Upload
+                    </NavLink>
+                    <NavLink
+                        to="/config"
+                        className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}
+                    >
+                        <Settings size={20}/>
+                        System Config
+                    </NavLink>
+                    <NavLink
+                        to="/prompts"
+                        className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}
+                    >
+                        <FileText size={20}/>
+                        Prompts
+                    </NavLink>
+                    <NavLink to="/runs" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}>
+                        <Activity size={20}/>
+                        Live Runs
+                    </NavLink>
+                    <NavLink
+                        to="/reports"
+                        className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}
+                    >
+                        <FileText size={20}/>
+                        Reports
+                    </NavLink>
+                </nav>
+            </aside>
+
+            <main className="main-content">
+                <div
+                    className="glass-panel"
+                    style={{
+                        marginBottom: "24px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "16px 24px"
+                    }}
+                >
+                    <div style={{display: "flex", alignItems: "center", gap: "16px"}}>
+                        {user?.picture ? (
+                            <img
+                                src={user.picture}
+                                alt="Profile"
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "50%",
+                                    border: "2px solid var(--accent-purple)",
+                                    objectFit: "cover"
+                                }}
+                            />
+                        ) : (
+                            <div style={{
+                                width: "48px",
+                                height: "48px",
+                                borderRadius: "50%",
+                                backgroundColor: "var(--accent-purple)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "bold",
+                                fontSize: "1.2rem",
+                                color: "white"
+                            }}>
+                                {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "U"}
+                            </div>
+                        )}
+            <div>
+                <div style={{fontWeight: "600", color: "var(--text-color)", fontSize: "1.1rem"}}>
+                    {user?.name || "NAIRI Operator"}
+                </div>
+                <div style={{color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "4px"}}>
+                    {user?.email}
+                </div>
+            </div>
+                    </div>
+                    <button
+                        className="btn-primary"
+                        onClick={handleLogout}
+                        style={{
+                            background: "rgba(255, 255, 255, 0.05)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            color: "var(--text-color)",
+                            padding: "10px 20px"
+                        }}
+                    >
+                        <LogOut size={18} style={{marginRight: "8px", verticalAlign: "bottom"}}/>
+                        Sign Out
+                    </button>
+                </div>
+
+                <Routes>
+                    <Route path="/" element={<UploadView/>}/>
+                    <Route path="/config" element={<ConfigView/>}/>
+                    <Route path="/prompts" element={<PromptsView/>}/>
+                    <Route
+                        path="/runs"
+                        element={
+                            <div className="glass-panel">
+                                <h1>Live Runs</h1>
+                                <p>Not implemented yet.</p>
+                            </div>
+                        }
+                    />
+                    <Route
+                        path="/reports"
+                        element={
+                            <div className="glass-panel">
+                                <h1>Reports</h1>
+                                <p>Not implemented yet.</p>
+                            </div>
+                        }
+                    />
+                </Routes>
+            </main>
+        </div>
   );
 }

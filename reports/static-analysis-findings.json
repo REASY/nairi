@@ -1,0 +1,64 @@
+{
+  "manifest": {
+    "permissions": [
+      "com.example.obfuscate.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "exported_components": [
+      "com.example.obfuscate.MainActivity",
+      "androidx.profileinstaller.ProfileInstallReceiver"
+    ],
+    "main_activity": "com.example.obfuscate.MainActivity",
+    "debuggable": true,
+    "allowBackup": true
+  },
+  "java_findings": {
+    "hardcoded_secrets": [
+      "KEY_INSTALL_ID = app_install_id"
+    ],
+    "native_loads": [
+      "System.loadLibrary(\"uniffi_obfuscate\")",
+      "System.loadLibrary(libName)"
+    ],
+    "dynamic_loading": true,
+    "cert_pinning": false
+  },
+  "native_findings": [
+    {
+      "library": "libuniffi_obfuscate.so",
+      "functions": 1291,
+      "suspicious_imports": [
+        "pthread_setspecific",
+        "pthread_key_create",
+        "__system_property_get",
+        "pthread_rwlock_wrlock"
+      ],
+      "indicators": [
+        "a-very-secret-key-for-this-!@#$",
+        "/dev/socket/qemud",
+        "init.svc.goldfish-logcat",
+        "/cache/su",
+        "/data/local/bin/su",
+        "magisk",
+        "riru",
+        "xposed",
+        "/proc/self/maps"
+      ],
+      "analysis": "Performs anti-debugging and root detection checks (Magisk, su, QEMU/Goldfish). Used by Java layer to decrypt DEX payloads dynamically."
+    },
+    {
+      "library": "libjnidispatch.so",
+      "functions": 214,
+      "suspicious_imports": [
+        "dlopen",
+        "dlsym",
+        "pthread_mutex_init",
+        "open",
+        "write"
+      ],
+      "indicators": [],
+      "analysis": "Standard JNA dispatch library."
+    }
+  ],
+  "risk_rating": "Critical",
+  "rationale": "App is debuggable, allows backups, contains hardcoded cryptographic keys, and implements aggressive anti-debugging/emulator/root evasion using native libraries (libuniffi_obfuscate.so). Uses dynamic code loading to unpack a secondary payload, hiding its true behavior."
+}
