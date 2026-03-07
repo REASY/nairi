@@ -48,7 +48,12 @@ These choices are normative for MVP and production baseline unless superseded by
 Recommended workspace layout:
 
 1. `frontend/` for TypeScript + React application.
-2. `backend/` for Rust + Axum services.
+2. `backend/` Rust workspace for Axum services and shared libraries.
+   1. `backend/crates/nairi-core`
+   2. `backend/crates/nairi-api`
+   3. `backend/crates/nairi-orchestrator`
+   4. `backend/crates/nairi-storage`
+   5. `backend/crates/nairi-server`
 3. `backend/runtime/ebpf/` for probes/parsers/runtime tracing assets.
 4. `research/trace-experiments/` for manual experiment runners and ad-hoc analysis workflows.
 5. `spec/` for contracts and architecture docs.

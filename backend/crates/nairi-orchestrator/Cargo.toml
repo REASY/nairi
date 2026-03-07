@@ -1,0 +1,12 @@
+[package]
+name = "nairi-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nairi-core = { path = "../nairi-core" }
+nairi-storage = { path = "../nairi-storage" }
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true

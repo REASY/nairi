@@ -3,3 +3,6 @@ target
 .idea
 .volumes
 .env
+node_modules
+dist
+*.log

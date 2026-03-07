@@ -1,0 +1,11 @@
+[package]
+name = "nairi-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nairi-core = { path = "../nairi-core" }
+nairi-orchestrator = { path = "../nairi-orchestrator" }
+axum.workspace = true
+serde.workspace = true
+uuid.workspace = true

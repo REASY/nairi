@@ -1,0 +1,9 @@
+[package]
+name = "nairi-storage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nairi-core = { path = "../nairi-core" }
+tokio.workspace = true
+uuid.workspace = true
