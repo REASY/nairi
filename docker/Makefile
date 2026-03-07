@@ -15,6 +15,7 @@ IMAGE_AUTHORS ?= Artavazd Balaian <reasyu@gmail.com>
 GHIDRA_VERSION ?= 12.0.4
 GHIDRA_RELEASE_DATE ?= 20260303
 APKTOOL_VERSION ?= 3.0.1
+GEMINI_CLI_VERSION ?= 0.32.1
 
 COMMON_BUILD_ARGS := \
 	--build-arg VERSION="$(VERSION)" \
@@ -73,6 +74,7 @@ build-static:
 		--build-arg APKTOOL_VERSION="$(APKTOOL_VERSION)" \
 		--build-arg GHIDRA_VERSION="$(GHIDRA_VERSION)" \
 		--build-arg GHIDRA_RELEASE_DATE="$(GHIDRA_RELEASE_DATE)" \
+		--build-arg GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
 		-f "$(MAKEFILE_DIR)/images/static-analysis/Dockerfile" \
 		-t $(PROJECT)/static-analysis:$(VERSION) \
 		"$(ROOT_DIR)"
@@ -92,6 +94,7 @@ compose-dev-tools-up:
 	GHIDRA_VERSION="$(GHIDRA_VERSION)" \
 	GHIDRA_RELEASE_DATE="$(GHIDRA_RELEASE_DATE)" \
 	APKTOOL_VERSION="$(APKTOOL_VERSION)" \
+	GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
 	docker compose -f "$(MAKEFILE_DIR)/compose/docker-compose.dev.yml" --profile tools up --build
 
 compose-dev-down:

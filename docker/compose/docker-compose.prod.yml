@@ -17,6 +17,8 @@ services:
 
   static-analysis:
     image: ${NAIRI_STATIC_IMAGE:-ghcr.io/reasy/nairi/static-analysis}:${NAIRI_TAG:-latest}
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GOOGLE_GEMINI_BASE_URL: "${GOOGLE_GEMINI_BASE_URL:-}"
     profiles:
       - tools
-

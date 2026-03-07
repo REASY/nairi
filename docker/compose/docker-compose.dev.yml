@@ -45,6 +45,7 @@ services:
         APKTOOL_VERSION: "${APKTOOL_VERSION:-2.11.1}"
         GHIDRA_VERSION: "${GHIDRA_VERSION:-}"
         GHIDRA_RELEASE_DATE: "${GHIDRA_RELEASE_DATE:-}"
+        GEMINI_CLI_VERSION: "${GEMINI_CLI_VERSION:-0.32.1}"
         VERSION: "${VERSION:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
         COMMIT_SHA: "${COMMIT_SHA:-unknown}"
@@ -53,6 +54,9 @@ services:
         IMAGE_LICENSES: "${IMAGE_LICENSES:-Apache-2.0}"
         IMAGE_AUTHORS: "${IMAGE_AUTHORS:-Artavazd Balaian <reasyu@gmail.com>}"
     image: nairi/static-analysis:dev
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GOOGLE_GEMINI_BASE_URL: "${GOOGLE_GEMINI_BASE_URL:-}"
     profiles:
       - tools
     tty: true

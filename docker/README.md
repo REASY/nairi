@@ -25,6 +25,15 @@ Build all images including static-analysis tools:
 GHIDRA_VERSION=11.4 GHIDRA_RELEASE_DATE=20250218 make docker-build-tools
 ```
 
+Pin Gemini CLI version in static-analysis image:
+
+```bash
+GHIDRA_VERSION=11.4 \
+GHIDRA_RELEASE_DATE=20250218 \
+GEMINI_CLI_VERSION=0.32.1 \
+make build-static
+```
+
 Common metadata override:
 
 ```bash
@@ -57,9 +66,15 @@ docker build \
   -f docker/images/static-analysis/Dockerfile \
   --build-arg GHIDRA_VERSION=11.4 \
   --build-arg GHIDRA_RELEASE_DATE=20250218 \
+  --build-arg GEMINI_CLI_VERSION=0.32.1 \
   -t nairi/static-analysis:dev \
   .
 ```
+
+Gemini runtime environment variables:
+
+1. `GEMINI_API_KEY`
+2. `GOOGLE_GEMINI_BASE_URL`
 
 ## Compose
 

@@ -6,11 +6,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG APKTOOL_VERSION=2.11.1
 ARG GHIDRA_VERSION
 ARG GHIDRA_RELEASE_DATE
+ARG GEMINI_CLI_VERSION=0.32.1
 ARG VERSION=dev
 ARG BUILD_DATE=unknown
 ARG COMMIT_SHA=unknown
 ARG IMAGE_NAME=nairi-static-analysis
-ARG IMAGE_DESCRIPTION="NAIRI static analysis tools image with APKTool and Ghidra"
+ARG IMAGE_DESCRIPTION="NAIRI static analysis tools image with APKTool, Ghidra, and Gemini CLI"
 ARG IMAGE_URL=https://github.com/REASY/nairi
 ARG IMAGE_SOURCE=https://github.com/REASY/nairi
 ARG IMAGE_LICENSES=Apache-2.0
@@ -34,8 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     file \
     git \
+    nodejs \
+    npm \
     openjdk-21-jre-headless \
     python3 \
+    python3-pip \
     unzip \
     wget \
     xz-utils \
@@ -56,8 +60,15 @@ RUN wget -q -O /tmp/ghidra.zip \
     && rm -f /tmp/ghidra.zip \
     && ln -s /opt/ghidra_${GHIDRA_VERSION}_PUBLIC /opt/ghidra
 
+# Install AI Agents
+RUN npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}" && \
+    pip3 install --break-system-packages aider-chat
+
 ENV GHIDRA_HOME=/opt/ghidra
+ENV GEMINI_API_KEY=""
+ENV GOOGLE_GEMINI_BASE_URL=""
 ENV PATH="${GHIDRA_HOME}/support:${PATH}"
 WORKDIR /workspace
 
+# Default command if nothing is passed; orchestrator will override this
 CMD ["/bin/bash"]

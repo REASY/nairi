@@ -10,6 +10,7 @@ IMAGE_URL="${IMAGE_URL:-https://github.com/REASY/nairi}"
 IMAGE_SOURCE="${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
 IMAGE_LICENSES="${IMAGE_LICENSES:-Apache-2.0}"
 IMAGE_AUTHORS="${IMAGE_AUTHORS:-Artavazd Balaian <reasyu@gmail.com>}"
+GEMINI_CLI_VERSION="${GEMINI_CLI_VERSION:-0.32.1}"
 
 COMMON_ARGS=(
   --build-arg "VERSION=${VERSION}"
@@ -37,6 +38,7 @@ if [[ -n "${GHIDRA_VERSION:-}" && -n "${GHIDRA_RELEASE_DATE:-}" ]]; then
   docker build \
     "${COMMON_ARGS[@]}" \
     -f "${ROOT_DIR}/docker/images/static-analysis/Dockerfile" \
+    --build-arg GEMINI_CLI_VERSION="${GEMINI_CLI_VERSION}" \
     --build-arg GHIDRA_VERSION="${GHIDRA_VERSION}" \
     --build-arg GHIDRA_RELEASE_DATE="${GHIDRA_RELEASE_DATE}" \
     -t "nairi/static-analysis:${VERSION}" \
