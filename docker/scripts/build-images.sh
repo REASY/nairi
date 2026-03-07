@@ -13,6 +13,8 @@ GHIDRA_CLI_REF="${GHIDRA_CLI_REF:-master}"
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 JADX_VERSION="${JADX_VERSION:-1.5.5}"
 GEMINI_CLI_VERSION="${GEMINI_CLI_VERSION:-0.32.1}"
+ANDROID_CMDLINE_TOOLS_URL="${ANDROID_CMDLINE_TOOLS_URL:-https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip}"
+ANDROID_PLATFORM_API="${ANDROID_PLATFORM_API:-36}"
 
 COMMON_ARGS=(
   --build-arg "VERSION=${VERSION}"
@@ -33,6 +35,15 @@ docker build \
   "${COMMON_ARGS[@]}" \
   -f "${ROOT_DIR}/docker/images/frontend-web/Dockerfile" \
   -t "nairi/frontend-web:${VERSION}" \
+  "${ROOT_DIR}"
+
+docker build \
+  "${COMMON_ARGS[@]}" \
+  --build-arg ANDROID_CMDLINE_TOOLS_URL="${ANDROID_CMDLINE_TOOLS_URL}" \
+  --build-arg ANDROID_PLATFORM_API="${ANDROID_PLATFORM_API}" \
+  --build-arg GEMINI_CLI_VERSION="${GEMINI_CLI_VERSION}" \
+  -f "${ROOT_DIR}/docker/images/runtime-analysis/Dockerfile" \
+  -t "nairi/runtime-analysis:${VERSION}" \
   "${ROOT_DIR}"
 
 if [[ -n "${GHIDRA_VERSION:-}" && -n "${GHIDRA_RELEASE_DATE:-}" ]]; then

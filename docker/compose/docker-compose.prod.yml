@@ -7,6 +7,14 @@ services:
       - "8080:8080"
     environment:
       - RUST_LOG=${RUST_LOG:-info}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      - GOOGLE_OAUTH_REDIRECT_URI=${GOOGLE_OAUTH_REDIRECT_URI:-}
+      - SESSION_SIGNING_KEY=${SESSION_SIGNING_KEY:-}
+      - AUTH_POST_LOGIN_REDIRECT_URL=${AUTH_POST_LOGIN_REDIRECT_URL:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      - ALLOWED_GOOGLE_HOSTED_DOMAIN=${ALLOWED_GOOGLE_HOSTED_DOMAIN:-}
 
   frontend:
     image: ${NAIRI_FRONTEND_IMAGE:-ghcr.io/reasy/nairi/frontend-web}:${NAIRI_TAG:-latest}
@@ -20,5 +28,14 @@ services:
     environment:
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       GOOGLE_GEMINI_BASE_URL: "${GOOGLE_GEMINI_BASE_URL:-}"
+    profiles:
+      - tools
+
+  runtime-analysis:
+    image: ${NAIRI_RUNTIME_IMAGE:-ghcr.io/reasy/nairi/runtime-analysis}:${NAIRI_TAG:-latest}
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GOOGLE_GEMINI_BASE_URL: "${GOOGLE_GEMINI_BASE_URL:-}"
+      ADB_CONNECTION_STRING: "${ADB_CONNECTION_STRING:-}"
     profiles:
       - tools

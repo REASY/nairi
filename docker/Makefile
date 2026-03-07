@@ -18,6 +18,8 @@ RUST_TOOLCHAIN ?= stable
 APKTOOL_VERSION ?= 3.0.1
 JADX_VERSION ?= 1.5.5
 GEMINI_CLI_VERSION ?= 0.32.1
+ANDROID_CMDLINE_TOOLS_URL ?= https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip
+ANDROID_PLATFORM_API ?= 36
 
 COMMON_BUILD_ARGS := \
 	--build-arg VERSION="$(VERSION)" \
@@ -27,7 +29,7 @@ COMMON_BUILD_ARGS := \
 	--build-arg IMAGE_LICENSES="$(IMAGE_LICENSES)" \
 	--build-arg IMAGE_AUTHORS="$(IMAGE_AUTHORS)"
 
-.PHONY: help build-backend build-frontend build-orchestrator build-static build-all build-all-with-tools \
+.PHONY: help build-backend build-frontend build-orchestrator build-static build-runtime build-all build-all-with-tools \
 	compose-dev-up compose-dev-tools-up compose-dev-down compose-prod-up compose-prod-down
 
 help:
@@ -36,10 +38,11 @@ help:
 	@echo "  build-frontend          Build frontend-web image"
 	@echo "  build-orchestrator      Build orchestrator image"
 	@echo "  build-static            Build static-analysis image (requires GHIDRA_VERSION and GHIDRA_RELEASE_DATE)"
+	@echo "  build-runtime           Build runtime-analysis image (ADB + AI agent)"
 	@echo "  build-all               Build backend + frontend + orchestrator images"
-	@echo "  build-all-with-tools    Build all images including static-analysis"
+	@echo "  build-all-with-tools    Build all images including static-analysis and runtime-analysis"
 	@echo "  compose-dev-up          Start dev stack (backend + frontend)"
-	@echo "  compose-dev-tools-up    Start dev stack with static-analysis profile"
+	@echo "  compose-dev-tools-up    Start dev stack with tools profile"
 	@echo "  compose-dev-down        Stop dev stack"
 	@echo "  compose-prod-up         Start prod compose stack"
 	@echo "  compose-prod-down       Stop prod compose stack"
@@ -83,9 +86,19 @@ build-static:
 		-t $(PROJECT)/static-analysis:$(VERSION) \
 		"$(ROOT_DIR)"
 
+build-runtime:
+	docker build \
+		$(COMMON_BUILD_ARGS) \
+		--build-arg GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
+		--build-arg ANDROID_CMDLINE_TOOLS_URL="$(ANDROID_CMDLINE_TOOLS_URL)" \
+		--build-arg ANDROID_PLATFORM_API="$(ANDROID_PLATFORM_API)" \
+		-f "$(MAKEFILE_DIR)/images/runtime-analysis/Dockerfile" \
+		-t $(PROJECT)/runtime-analysis:$(VERSION) \
+		"$(ROOT_DIR)"
+
 build-all: build-backend build-frontend build-orchestrator
 
-build-all-with-tools: build-all build-static
+build-all-with-tools: build-all build-static build-runtime
 
 compose-dev-up:
 	docker compose -f "$(MAKEFILE_DIR)/compose/docker-compose.dev.yml" up --build
@@ -102,6 +115,8 @@ compose-dev-tools-up:
 	APKTOOL_VERSION="$(APKTOOL_VERSION)" \
 	JADX_VERSION="$(JADX_VERSION)" \
 	GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
+	ANDROID_CMDLINE_TOOLS_URL="$(ANDROID_CMDLINE_TOOLS_URL)" \
+	ANDROID_PLATFORM_API="$(ANDROID_PLATFORM_API)" \
 	docker compose -f "$(MAKEFILE_DIR)/compose/docker-compose.dev.yml" --profile tools up --build
 
 compose-dev-down:
