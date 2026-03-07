@@ -5,7 +5,6 @@ ROOT_DIR := $(abspath $(MAKEFILE_DIR)/..)
 
 PROJECT ?= nairi
 VERSION ?= dev
-BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 COMMIT_SHA ?= $(shell git -C "$(ROOT_DIR)" rev-parse --short HEAD 2>/dev/null || echo unknown)
 IMAGE_URL ?= https://github.com/REASY/nairi
 IMAGE_SOURCE ?= https://github.com/REASY/nairi
@@ -14,12 +13,14 @@ IMAGE_AUTHORS ?= Artavazd Balaian <reasyu@gmail.com>
 
 GHIDRA_VERSION ?= 12.0.4
 GHIDRA_RELEASE_DATE ?= 20260303
+GHIDRA_CLI_REF ?= master
+RUST_TOOLCHAIN ?= stable
 APKTOOL_VERSION ?= 3.0.1
+JADX_VERSION ?= 1.5.5
 GEMINI_CLI_VERSION ?= 0.32.1
 
 COMMON_BUILD_ARGS := \
 	--build-arg VERSION="$(VERSION)" \
-	--build-arg BUILD_DATE="$(BUILD_DATE)" \
 	--build-arg COMMIT_SHA="$(COMMIT_SHA)" \
 	--build-arg IMAGE_URL="$(IMAGE_URL)" \
 	--build-arg IMAGE_SOURCE="$(IMAGE_SOURCE)" \
@@ -74,6 +75,9 @@ build-static:
 		--build-arg APKTOOL_VERSION="$(APKTOOL_VERSION)" \
 		--build-arg GHIDRA_VERSION="$(GHIDRA_VERSION)" \
 		--build-arg GHIDRA_RELEASE_DATE="$(GHIDRA_RELEASE_DATE)" \
+		--build-arg GHIDRA_CLI_REF="$(GHIDRA_CLI_REF)" \
+		--build-arg RUST_TOOLCHAIN="$(RUST_TOOLCHAIN)" \
+		--build-arg JADX_VERSION="$(JADX_VERSION)" \
 		--build-arg GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
 		-f "$(MAKEFILE_DIR)/images/static-analysis/Dockerfile" \
 		-t $(PROJECT)/static-analysis:$(VERSION) \
@@ -93,7 +97,10 @@ compose-dev-tools-up:
 	fi
 	GHIDRA_VERSION="$(GHIDRA_VERSION)" \
 	GHIDRA_RELEASE_DATE="$(GHIDRA_RELEASE_DATE)" \
+	GHIDRA_CLI_REF="$(GHIDRA_CLI_REF)" \
+	RUST_TOOLCHAIN="$(RUST_TOOLCHAIN)" \
 	APKTOOL_VERSION="$(APKTOOL_VERSION)" \
+	JADX_VERSION="$(JADX_VERSION)" \
 	GEMINI_CLI_VERSION="$(GEMINI_CLI_VERSION)" \
 	docker compose -f "$(MAKEFILE_DIR)/compose/docker-compose.dev.yml" --profile tools up --build
 

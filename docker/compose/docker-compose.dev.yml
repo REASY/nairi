@@ -7,7 +7,6 @@ services:
       dockerfile: docker/images/backend-server/Dockerfile
       args:
         VERSION: "${VERSION:-dev}"
-        BUILD_DATE: "${BUILD_DATE:-unknown}"
         COMMIT_SHA: "${COMMIT_SHA:-unknown}"
         IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
         IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
@@ -25,7 +24,6 @@ services:
       dockerfile: docker/images/frontend-web/Dockerfile
       args:
         VERSION: "${VERSION:-dev}"
-        BUILD_DATE: "${BUILD_DATE:-unknown}"
         COMMIT_SHA: "${COMMIT_SHA:-unknown}"
         IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
         IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"
@@ -45,9 +43,11 @@ services:
         APKTOOL_VERSION: "${APKTOOL_VERSION:-2.11.1}"
         GHIDRA_VERSION: "${GHIDRA_VERSION:-}"
         GHIDRA_RELEASE_DATE: "${GHIDRA_RELEASE_DATE:-}"
+        GHIDRA_CLI_REF: "${GHIDRA_CLI_REF:-master}"
+        RUST_TOOLCHAIN: "${RUST_TOOLCHAIN:-nightly}"
+        JADX_VERSION: "${JADX_VERSION:-1.5.5}"
         GEMINI_CLI_VERSION: "${GEMINI_CLI_VERSION:-0.32.1}"
         VERSION: "${VERSION:-dev}"
-        BUILD_DATE: "${BUILD_DATE:-unknown}"
         COMMIT_SHA: "${COMMIT_SHA:-unknown}"
         IMAGE_URL: "${IMAGE_URL:-https://github.com/REASY/nairi}"
         IMAGE_SOURCE: "${IMAGE_SOURCE:-https://github.com/REASY/nairi}"

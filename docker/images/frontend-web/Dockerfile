@@ -14,7 +14,6 @@ RUN npm run build
 FROM ${BASE_IMAGE}
 
 ARG VERSION=dev
-ARG BUILD_DATE=unknown
 ARG COMMIT_SHA=unknown
 ARG IMAGE_NAME=nairi-frontend-web
 ARG IMAGE_DESCRIPTION="NAIRI frontend web UI served by Nginx"
@@ -33,7 +32,6 @@ LABEL \
     org.opencontainers.image.licenses="${IMAGE_LICENSES}" \
     org.opencontainers.image.authors="${IMAGE_AUTHORS}" \
     org.opencontainers.image.base.name="${BASE_IMAGE}" \
-    org.opencontainers.image.created="${BUILD_DATE}" \
     org.opencontainers.image.revision="${COMMIT_SHA}"
 
 COPY docker/images/frontend-web/nginx.conf /etc/nginx/conf.d/default.conf

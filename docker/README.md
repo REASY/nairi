@@ -4,7 +4,7 @@ This directory keeps NAIRI container assets in one place.
 
 ## Structure
 
-1. `images/static-analysis`: Docker image for static malware analysis tools (APKTool + Ghidra).
+1. `images/static-analysis`: Docker image for static malware analysis tools (APKTool + JADX + Ghidra + ghidra-cli).
 2. `images/backend-server`: Docker image for the Rust Axum backend service.
 3. `images/frontend-web`: Docker image for the React frontend served by Nginx.
 4. `images/orchestrator`: Starter image for orchestration-related workloads.
@@ -25,11 +25,14 @@ Build all images including static-analysis tools:
 GHIDRA_VERSION=11.4 GHIDRA_RELEASE_DATE=20250218 make docker-build-tools
 ```
 
-Pin Gemini CLI version in static-analysis image:
+Pin tool versions in static-analysis image:
 
 ```bash
 GHIDRA_VERSION=11.4 \
 GHIDRA_RELEASE_DATE=20250218 \
+GHIDRA_CLI_REF=master \
+RUST_TOOLCHAIN=nightly \
+JADX_VERSION=1.5.5 \
 GEMINI_CLI_VERSION=0.32.1 \
 make build-static
 ```
@@ -38,7 +41,6 @@ Common metadata override:
 
 ```bash
 VERSION=0.1.0 \
-BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 COMMIT_SHA="$(git rev-parse --short HEAD)" \
 make docker-build
 ```
@@ -66,6 +68,9 @@ docker build \
   -f docker/images/static-analysis/Dockerfile \
   --build-arg GHIDRA_VERSION=11.4 \
   --build-arg GHIDRA_RELEASE_DATE=20250218 \
+  --build-arg GHIDRA_CLI_REF=master \
+  --build-arg RUST_TOOLCHAIN=nightly \
+  --build-arg JADX_VERSION=1.5.5 \
   --build-arg GEMINI_CLI_VERSION=0.32.1 \
   -t nairi/static-analysis:dev \
   .
