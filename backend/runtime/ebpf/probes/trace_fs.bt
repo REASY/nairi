@@ -1,0 +1,376 @@
+#!/usr/local/bin/bpftrace
+
+/*
+ * Binary-level observation tracer (filesystem/proc probes, verifier-safe).
+ *
+ * Captures sampled path probes from libc APIs frequently used by
+ * anti-root/anti-hook/anti-emulator logic:
+ * - openat/access/stat/lstat/readlink/readlinkat/opendir
+ *
+ * For each call, prints return status directly from uretprobe:
+ * - rc=<retval> + ok=<0|1>, or ret=0x... + ok=<0|1> for pointer returns.
+ * - errno=<num> is also reported (captured from raw_syscalls:sys_exit while
+ *   the libc wrapper call is in-flight).
+ *
+ * Note:
+ * - No in-kernel strcontains() filters (to avoid verifier complexity blowups).
+ * - Filter paths in user-space with grep.
+ *
+ * Usage:
+ *   bpftrace trace_fs.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]
+ *     enable_sampling=0 (default): print all events
+ *     enable_sampling=1: sampled output
+ *     enable_stack=0 (default): no stacktrace
+ *     enable_stack=1: print user stacktrace
+ *     stack_depth=40 (default): max user stack frames per printed event
+ *       supported values on older bpftrace: 10,20,40,80,120
+ *
+ * Example filter:
+ *   bpftrace trace_fs.bt <uid> | grep -Ei '/proc/|magisk|zygisk|xposed|riru|/su|qemu|bluestacks|genymotion'
+ */
+
+BEGIN
+{
+    @target_uid = (uint64)$1;
+    if (@target_uid == 0) {
+        printf("usage: bpftrace trace_fs.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]\n");
+        exit();
+    }
+
+    @sample = (uint64)$2;
+    if (@sample != 1) {
+        @sample = 0;
+    }
+    @stack = (uint64)$3;
+    if (@stack != 1) {
+        @stack = 0;
+    }
+    @stack_depth_req = (uint64)$4;
+    if (@stack_depth_req == 0) {
+        @stack_depth = 40;
+    } else if (@stack_depth_req == 10 || @stack_depth_req == 20 || @stack_depth_req == 40 || @stack_depth_req == 80 || @stack_depth_req == 120) {
+        @stack_depth = @stack_depth_req;
+    } else {
+        @stack_depth = 40;
+        printf("[obs-fs] unsupported stack_depth=%d, using 40 (supported: 10,20,40,80,120)\n", @stack_depth_req);
+    }
+    @fs_events = 0;
+    printf("[obs-fs] tracing uid=%d sampling=%d stack=%d stack_depth=%d\n",
+           @target_uid, @sample, @stack, @stack_depth);
+}
+
+tracepoint:raw_syscalls:sys_exit /((uint64)uid) == @target_uid && @fs_inflight[tid] == 1/
+{
+    $ret = (int64)args->ret;
+    if ($ret < 0) {
+        @fs_errno[tid] = -$ret;
+    } else {
+        @fs_errno[tid] = 0;
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:openat /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 300 || (((uint64)$n % 20) == 0))) {
+        @openat_seq[tid] = $n;
+        @openat_path[tid] = arg1;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:openat /((uint64)uid) == @target_uid/
+{
+    $n = @openat_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc >= 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] openat uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@openat_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@openat_seq[tid]);
+        delete(@openat_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:access /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 220 || (((uint64)$n % 20) == 0))) {
+        @access_seq[tid] = $n;
+        @access_path[tid] = arg0;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:access /((uint64)uid) == @target_uid/
+{
+    $n = @access_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc == 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] access uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@access_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@access_seq[tid]);
+        delete(@access_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:stat /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 220 || (((uint64)$n % 20) == 0))) {
+        @stat_seq[tid] = $n;
+        @stat_path[tid] = arg0;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:stat /((uint64)uid) == @target_uid/
+{
+    $n = @stat_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc == 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] stat uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@stat_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@stat_seq[tid]);
+        delete(@stat_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:lstat /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 220 || (((uint64)$n % 20) == 0))) {
+        @lstat_seq[tid] = $n;
+        @lstat_path[tid] = arg0;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:lstat /((uint64)uid) == @target_uid/
+{
+    $n = @lstat_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc == 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] lstat uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@lstat_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@lstat_seq[tid]);
+        delete(@lstat_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:readlink /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 180 || (((uint64)$n % 20) == 0))) {
+        @readlink_seq[tid] = $n;
+        @readlink_path[tid] = arg0;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:readlink /((uint64)uid) == @target_uid/
+{
+    $n = @readlink_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc >= 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] readlink uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@readlink_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@readlink_seq[tid]);
+        delete(@readlink_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:readlinkat /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 180 || (((uint64)$n % 20) == 0))) {
+        @readlinkat_seq[tid] = $n;
+        @readlinkat_path[tid] = arg1;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:readlinkat /((uint64)uid) == @target_uid/
+{
+    $n = @readlinkat_seq[tid];
+    if ($n != 0) {
+        $rc = (int64)retval;
+        $ok = $rc >= 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] readlinkat uid=%d pid=%d tid=%d comm=%s path=%s rc=%ld ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@readlinkat_path[tid], 112), $rc, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@readlinkat_seq[tid]);
+        delete(@readlinkat_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:opendir /((uint64)uid) == @target_uid/
+{
+    $n = ++@fs_events;
+    if (@sample == 0 || ($n <= 180 || (((uint64)$n % 20) == 0))) {
+        @opendir_seq[tid] = $n;
+        @opendir_path[tid] = arg0;
+        @fs_inflight[tid] = 1;
+        @fs_errno[tid] = 0;
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:opendir /((uint64)uid) == @target_uid/
+{
+    $n = @opendir_seq[tid];
+    if ($n != 0) {
+        $ret = (uint64)retval;
+        $ok = $ret != 0 ? 1 : 0;
+        $err = $ok == 1 ? 0 : @fs_errno[tid];
+        printf("[obs-fs][%d] opendir uid=%d pid=%d tid=%d comm=%s path=%s ret=0x%lx ok=%d errno=%d\n",
+               $n, uid, pid, tid, comm, str(@opendir_path[tid], 112), $ret, $ok, $err);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+        delete(@opendir_seq[tid]);
+        delete(@opendir_path[tid]);
+        delete(@fs_inflight[tid]);
+        delete(@fs_errno[tid]);
+    }
+}
+
+interval:s:3
+{
+    printf("[obs-fs] uid=%d fs_events=%d\n", @target_uid, @fs_events);
+}
+
+END
+{
+    clear(@openat_seq);
+    clear(@openat_path);
+    clear(@access_seq);
+    clear(@access_path);
+    clear(@stat_seq);
+    clear(@stat_path);
+    clear(@lstat_seq);
+    clear(@lstat_path);
+    clear(@readlink_seq);
+    clear(@readlink_path);
+    clear(@readlinkat_seq);
+    clear(@readlinkat_path);
+    clear(@opendir_seq);
+    clear(@opendir_path);
+    clear(@fs_inflight);
+    clear(@fs_errno);
+    printf("[obs-fs] done uid=%d fs_events=%d\n", @target_uid, @fs_events);
+}

@@ -1,0 +1,127 @@
+#!/usr/local/bin/bpftrace
+
+/*
+ * Binary-level observation tracer (system-property probes, verifier-safe).
+ *
+ * Shows sampled __system_property_get keys requested by app UID.
+ * Default mode prints key+value pairs.
+ *
+ * Usage:
+ *   bpftrace trace_properties.bt <app_uid> [key_only] [enable_sampling] [enable_stack] [stack_depth]
+ *     key_only=0 (default): key+value mode (uses uretprobe)
+ *     key_only=1: key-only mode
+ *     enable_sampling=0 (default): print all events
+ *     enable_sampling=1: sampled output
+ *     enable_stack=0 (default): no stacktrace
+ *     enable_stack=1: print user stacktrace from uretprobe path
+ *     stack_depth=40 (default): max user stack frames per printed event
+ *       supported values on older bpftrace: 10,20,40,80,120
+ *
+ * Example filter:
+ *   bpftrace trace_properties.bt <uid> | grep -E 'ro\\.|persist\\.|gsm\\.|ril\\.|sys\\.usb|net\\.hostname'
+ */
+
+BEGIN
+{
+    @target_uid = (uint64)$1;
+    if (@target_uid == 0) {
+        printf("usage: bpftrace trace_properties.bt <app_uid> [key_only] [enable_sampling] [enable_stack] [stack_depth]\n");
+        exit();
+    }
+
+    @key_only = (uint64)$2;
+    if (@key_only == 1) {
+        @show_values = 0;
+    } else {
+        @show_values = 1;
+    }
+
+    @sample = (uint64)$3;
+    if (@sample != 1) {
+        @sample = 0;
+    }
+    @stack = (uint64)$4;
+    if (@stack != 1) {
+        @stack = 0;
+    }
+    @stack_depth_req = (uint64)$5;
+    if (@stack_depth_req == 0) {
+        @stack_depth = 40;
+    } else if (@stack_depth_req == 10 || @stack_depth_req == 20 || @stack_depth_req == 40 || @stack_depth_req == 80 || @stack_depth_req == 120) {
+        @stack_depth = @stack_depth_req;
+    } else {
+        @stack_depth = 40;
+        printf("[obs-prop] unsupported stack_depth=%d, using 40 (supported: 10,20,40,80,120)\n", @stack_depth_req);
+    }
+    @prop_events = 0;
+    @value_events = 0;
+    printf("[obs-prop] tracing uid=%d key_only=%d show_values=%d sampling=%d stack=%d stack_depth=%d\n",
+           @target_uid, @key_only, @show_values, @sample, @stack, @stack_depth);
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:__system_property_get /((uint64)uid) == @target_uid/
+{
+    $n = ++@prop_events;
+
+    if (@sample == 0 || ($n <= 300 || (((uint64)$n % 25) == 0))) {
+        if (@show_values == 0) {
+            printf("[obs-prop][%d] uid=%d pid=%d tid=%d comm=%s key=%s\n",
+                   $n, uid, pid, tid, comm, str(arg0, 72));
+        } else {
+            @pending_key[tid] = arg0;
+            @pending_val[tid] = arg1;
+            @pending_seq[tid] = $n;
+        }
+    }
+}
+
+uretprobe:/apex/com.android.runtime/lib64/bionic/libc.so:__system_property_get /((uint64)uid) == @target_uid && @show_values != 0 && @pending_key[tid]/
+{
+    $seq = @pending_seq[tid];
+    $key = str(@pending_key[tid], 72);
+    $len = retval;
+
+    if ($len > 0) {
+        $val = str(@pending_val[tid], 96);
+        ++@value_events;
+        printf("[obs-prop][%d] uid=%d pid=%d tid=%d comm=%s key=%s len=%d val=%s\n",
+               $seq, uid, pid, tid, comm, $key, $len, $val);
+    } else {
+        printf("[obs-prop][%d] uid=%d pid=%d tid=%d comm=%s key=%s len=%d\n",
+               $seq, uid, pid, tid, comm, $key, $len);
+    }
+
+    if (@stack == 1) {
+        printf("[obs-prop][%d] stack pid=%d tid=%d key=%s\n", $seq, pid, tid, $key);
+        if (@stack_depth == 10) {
+            print(ustack(10));
+        } else if (@stack_depth == 20) {
+            print(ustack(20));
+        } else if (@stack_depth == 80) {
+            print(ustack(80));
+        } else if (@stack_depth == 120) {
+            print(ustack(120));
+        } else {
+            print(ustack(40));
+        }
+    }
+
+    delete(@pending_key[tid]);
+    delete(@pending_val[tid]);
+    delete(@pending_seq[tid]);
+}
+
+interval:s:3
+{
+    printf("[obs-prop] uid=%d property_calls=%d value_calls=%d\n",
+           @target_uid, @prop_events, @value_events);
+}
+
+END
+{
+    clear(@pending_key);
+    clear(@pending_val);
+    clear(@pending_seq);
+    printf("[obs-prop] done uid=%d property_calls=%d value_calls=%d\n",
+           @target_uid, @prop_events, @value_events);
+}

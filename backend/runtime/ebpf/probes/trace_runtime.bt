@@ -1,0 +1,129 @@
+#!/usr/local/bin/bpftrace
+
+/*
+ * Binary-level observation tracer (runtime control probes).
+ *
+ * Shows calls often used by anti-tamper/risk logic:
+ * - prctl(...)
+ * - uname(...)
+ * - syscall(number, ...)
+ *
+ * Usage:
+ *   bpftrace trace_runtime.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]
+ *     enable_sampling=0 (default): print all events
+ *     enable_sampling=1: sampled output
+ *     enable_stack=0 (default): no stacktrace
+ *     enable_stack=1: print user stacktrace
+ *     stack_depth=40 (default): max user stack frames per printed event
+ *       supported values on older bpftrace: 10,20,40,80,120
+ */
+
+BEGIN
+{
+    @target_uid = (uint64)$1;
+    if (@target_uid == 0) {
+        printf("usage: bpftrace trace_runtime.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]\n");
+        exit();
+    }
+
+    @sample = (uint64)$2;
+    if (@sample != 1) {
+        @sample = 0;
+    }
+    @stack = (uint64)$3;
+    if (@stack != 1) {
+        @stack = 0;
+    }
+    @stack_depth_req = (uint64)$4;
+    if (@stack_depth_req == 0) {
+        @stack_depth = 40;
+    } else if (@stack_depth_req == 10 || @stack_depth_req == 20 || @stack_depth_req == 40 || @stack_depth_req == 80 || @stack_depth_req == 120) {
+        @stack_depth = @stack_depth_req;
+    } else {
+        @stack_depth = 40;
+        printf("[obs-rt] unsupported stack_depth=%d, using 40 (supported: 10,20,40,80,120)\n", @stack_depth_req);
+    }
+    @prctl_events = 0;
+    @uname_events = 0;
+    @syscall_events = 0;
+    printf("[obs-rt] tracing uid=%d sampling=%d stack=%d stack_depth=%d\n",
+           @target_uid, @sample, @stack, @stack_depth);
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:prctl /((uint64)uid) == @target_uid/
+{
+    $n = ++@prctl_events;
+    if (@sample == 0 || ($n <= 220 || (((uint64)$n % 25) == 0))) {
+        printf("[obs-rt][prctl#%d] uid=%d pid=%d tid=%d comm=%s option=%d arg2=%p arg3=%p\n",
+               $n, uid, pid, tid, comm, arg0, arg1, arg2);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:uname /((uint64)uid) == @target_uid/
+{
+    $n = ++@uname_events;
+    if (@sample == 0 || ($n <= 120 || (((uint64)$n % 25) == 0))) {
+        printf("[obs-rt][uname#%d] uid=%d pid=%d tid=%d comm=%s buf=%p\n",
+               $n, uid, pid, tid, comm, arg0);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+    }
+}
+
+uprobe:/apex/com.android.runtime/lib64/bionic/libc.so:syscall /((uint64)uid) == @target_uid/
+{
+    $n = ++@syscall_events;
+    if (@sample == 0 || ($n <= 260 || (($n <= 4000) && (((uint64)$n % 25) == 0)))) {
+        printf("[obs-rt][syscall#%d] uid=%d pid=%d tid=%d comm=%s nr=%d arg1=%p arg2=%p\n",
+               $n, uid, pid, tid, comm, arg0, arg1, arg2);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+    }
+}
+
+interval:s:3
+{
+    printf("[obs-rt] uid=%d prctl=%d uname=%d syscall=%d\n",
+           @target_uid, @prctl_events, @uname_events, @syscall_events);
+}
+
+END
+{
+    printf("[obs-rt] done uid=%d prctl=%d uname=%d syscall=%d\n",
+           @target_uid, @prctl_events, @uname_events, @syscall_events);
+}
