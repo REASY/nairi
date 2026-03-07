@@ -3,7 +3,7 @@ pub mod auth;
 use std::sync::Arc;
 
 use auth::{AuthError, AuthUser, GoogleCallbackQuery};
-use axum::extract::{Path, Query, Request, State};
+use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, Request, State};
 use axum::http::{StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event, Sse};
@@ -15,6 +15,8 @@ use nairi_orchestrator::Orchestrator;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::path::PathBuf;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt as _;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::error;
@@ -36,7 +38,10 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/prompts/{name}",
             get(get_prompt).post(update_prompt),
         )
-        .route("/api/v1/analyses", post(create_analysis))
+        .route(
+            "/api/v1/analyses",
+            post(create_analysis).layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
+        )
         .route("/api/v1/analyses/{id}", get(get_analysis))
         .route("/api/v1/analyses/{id}/stream", get(stream_analysis))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
@@ -123,11 +128,6 @@ async fn health() -> impl IntoResponse {
     (StatusCode::OK, Json(HealthResponse { status: "ok" }))
 }
 
-#[derive(Debug, Deserialize)]
-struct CreateAnalysisRequest {
-    package_name: String,
-}
-
 #[derive(Debug, Serialize)]
 struct CreateAnalysisResponse {
     run: AnalysisRun,
@@ -135,28 +135,74 @@ struct CreateAnalysisResponse {
 
 async fn create_analysis(
     State(state): State<AppState>,
-    Json(request): Json<CreateAnalysisRequest>,
+    mut multipart: Multipart,
 ) -> impl IntoResponse {
-    if request.package_name.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new(
-                "invalid_request",
-                "package_name cannot be empty",
-            )),
-        )
-            .into_response();
+    let mut package_name = None;
+    let mut apk_path = None;
+
+    while let Ok(Some(mut field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or("").to_string();
+        if name == "package_name" {
+            let data = field.text().await.unwrap_or_default();
+            package_name = Some(data);
+        } else if name == "file" {
+            let file_name = field.file_name().unwrap_or("upload.apk").to_string();
+            let safe_name = file_name.replace("/", "").replace("\\", "");
+            let path = std::env::temp_dir().join(format!("{}_{}", Uuid::new_v4(), safe_name));
+
+            let mut file = match File::create(&path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("Failed to create file: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new("internal_error", "Failed to save file")),
+                    )
+                        .into_response();
+                }
+            };
+
+            while let Ok(Some(chunk)) = field.chunk().await {
+                if let Err(e) = file.write_all(&chunk).await {
+                    error!("Failed to write to file: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse::new("internal_error", "Failed to write file")),
+                    )
+                        .into_response();
+                }
+            }
+
+            apk_path = Some(path);
+        }
     }
 
-    // Dummy path for now until upload is implemented
-    let apk_path = std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join("app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk");
+    let package_name = match package_name {
+        Some(name) if !name.trim().is_empty() => name,
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new(
+                    "invalid_request",
+                    "package_name cannot be empty",
+                )),
+            )
+                .into_response();
+        }
+    };
 
-    let run = state
-        .orchestrator
-        .create_run(request.package_name, apk_path)
-        .await;
+    let apk_path = match apk_path {
+        Some(path) => path,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new("invalid_request", "file is required")),
+            )
+                .into_response();
+        }
+    };
+
+    let run = state.orchestrator.create_run(package_name, apk_path).await;
     (StatusCode::CREATED, Json(CreateAnalysisResponse { run })).into_response()
 }
 

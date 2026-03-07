@@ -45,7 +45,6 @@ impl DockerEngine {
             .arg(format!("{}:/workspace/reports", reports_dir.display()))
             .arg(&config.static_analysis_image)
             .arg("gemini")
-            .arg("--debug")
             .arg("--model")
             .arg(&config.model_name)
             .arg("--yolo")

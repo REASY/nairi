@@ -17,7 +17,7 @@ rust-version = "1.94.0"
 version = "0.1.0"
 
 [workspace.dependencies]
-axum = { version = "0.8", features = ["macros"] }
+axum = { version = "0.8", features = ["macros", "multipart"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 criterion = { version = "0.8", features = ["async_tokio"] }

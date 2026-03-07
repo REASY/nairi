@@ -1,17 +1,26 @@
-import {useState} from "react";
-import {UploadCloud, CheckCircle, Play, Shield, Loader} from "lucide-react";
+import {useState, useRef} from "react";
+import {UploadCloud, CheckCircle, Play, Shield, Loader, File as FileIcon} from "lucide-react";
 import {createAnalysis} from "../api";
 
 export default function UploadView() {
+    const [file, setFile] = useState<File | null>(null);
+    const [packageName, setPackageName] = useState("");
+    const [isDragging, setIsDragging] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [progress, setProgress] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleAnalyze = async () => {
+        if (!file || !packageName.trim()) {
+            alert("Please select an APK and enter a package name.");
+            return;
+        }
+
         setAnalyzing(true);
         setProgress(1);
 
         try {
-            const {run} = await createAnalysis({package_name: "test-app-1.0"});
+            const {run} = await createAnalysis({file, packageName});
             const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
             const eventSource = new EventSource(`${API_BASE_URL}/api/v1/analyses/${run.id}/stream`, {
                 withCredentials: true,
@@ -25,8 +34,13 @@ export default function UploadView() {
                         if (status === "Completed") {
                             setProgress(3);
                             eventSource.close();
+                            setAnalyzing(false);
                         } else if (status === "Running") {
                             setProgress(1);
+                        } else if (status === "Failed") {
+                            setAnalyzing(false);
+                            eventSource.close();
+                            alert("Analysis failed!");
                         }
                     }
                 } catch (e) {
@@ -50,20 +64,80 @@ export default function UploadView() {
                     APK Analysis <span style={{color: "var(--text-muted)", fontWeight: 400}}>| New Scan</span>
                 </h1>
 
-                <div className="dropzone">
-                    <UploadCloud size={64} className="icon"/>
-                    <h2>Upload APK for Analysis</h2>
-                    <p>
-                        Drag & Drop or <span style={{color: "var(--accent-cyan)", cursor: "pointer"}}>Browse</span>
-                    </p>
-                    <p style={{fontSize: "12px"}}>Supported: .apk, .xapk up to 1GB</p>
+                <div
+                    className={`dropzone ${isDragging ? "dragging" : ""} ${file ? "has-file" : ""}`}
+                    onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        const droppedFile = e.dataTransfer.files[0];
+                        if (droppedFile && (droppedFile.name.endsWith(".apk") || droppedFile.name.endsWith(".xapk"))) {
+                            setFile(droppedFile);
+                            if (!packageName) setPackageName(droppedFile.name.replace(/\.x?apk$/, ""));
+                        }
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                        borderColor: isDragging ? "var(--accent-cyan)" : file ? "var(--accent-purple)" : "var(--border-glass)",
+                        background: isDragging ? "rgba(0, 240, 255, 0.05)" : file ? "rgba(187, 134, 252, 0.05)" : "rgba(0,0,0,0.2)"
+                    }}
+                >
+                    <input
+                        type="file"
+                        accept=".apk,.xapk"
+                        ref={fileInputRef}
+                        style={{display: "none"}}
+                        onChange={(e) => {
+                            const selectedFile = e.target.files?.[0];
+                            if (selectedFile) {
+                                setFile(selectedFile);
+                                if (!packageName) setPackageName(selectedFile.name.replace(/\.x?apk$/, ""));
+                            }
+                        }}
+                    />
+
+                    {file ? (
+                        <>
+                            <FileIcon size={64} className="icon" color="var(--accent-purple)"/>
+                            <h2 style={{color: "var(--text-color)"}}>{file.name}</h2>
+                            <p style={{color: "var(--text-muted)"}}>
+                                {(file.size / (1024 * 1024)).toFixed(2)} MB • Ready for analysis
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <UploadCloud size={64} className="icon"/>
+                            <h2>Upload APK for Analysis</h2>
+                            <p>
+                                Drag & Drop or <span
+                                style={{color: "var(--accent-cyan)", cursor: "pointer"}}>Browse</span>
+                            </p>
+                            <p style={{fontSize: "12px"}}>Supported: .apk, .xapk up to 1GB</p>
+                        </>
+                    )}
                 </div>
 
-                <div style={{display: "flex", justifyContent: "center"}}>
+                {file && (
+                    <div className="form-group" style={{marginTop: "24px", maxWidth: "400px", margin: "24px auto"}}>
+                        <label>Target Package Name</label>
+                        <input
+                            type="text"
+                            value={packageName}
+                            onChange={(e) => setPackageName(e.target.value)}
+                            placeholder="e.g. com.example.app"
+                        />
+                    </div>
+                )}
+
+                <div style={{display: "flex", justifyContent: "center", marginTop: file ? "0" : "24px"}}>
                     <button
                         className="btn-primary"
                         onClick={handleAnalyze}
-                        disabled={analyzing}
+                        disabled={analyzing || !file}
                         style={{minWidth: "200px"}}
                     >
                         {analyzing ? "Initializing..." : "Analyse"}

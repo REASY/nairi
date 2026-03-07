@@ -9,7 +9,8 @@ export interface AnalysisRun {
 }
 
 export interface CreateAnalysisRequest {
-  package_name: string;
+    file: File;
+    packageName: string;
 }
 
 export interface CreateAnalysisResponse {
@@ -67,12 +68,13 @@ export async function logoutCurrentUser(): Promise<void> {
 export async function createAnalysis(
   payload: CreateAnalysisRequest,
 ): Promise<CreateAnalysisResponse> {
+    const formData = new FormData();
+    formData.append("file", payload.file);
+    formData.append("package_name", payload.packageName);
+
     const response = await apiFetch("/api/v1/analyses", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+        body: formData,
   });
 
   if (!response.ok) {

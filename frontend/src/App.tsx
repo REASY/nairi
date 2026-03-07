@@ -37,33 +37,33 @@ export default function App() {
     const [authState, setAuthState] = useState<AuthState>("loading");
     const [user, setUser] = useState<AuthUser | null>(null);
 
-  useEffect(() => {
-      let active = true;
+    useEffect(() => {
+        let active = true;
 
-      getCurrentUser()
-          .then((currentUser) => {
-              if (!active) return;
-              setUser(currentUser);
-              setAuthState("authenticated");
-          })
-          .catch(() => {
-              if (!active) return;
-              setUser(null);
-              setAuthState("unauthenticated");
-          });
+        getCurrentUser()
+            .then((currentUser) => {
+                if (!active) return;
+                setUser(currentUser);
+                setAuthState("authenticated");
+            })
+            .catch(() => {
+                if (!active) return;
+                setUser(null);
+                setAuthState("unauthenticated");
+            });
 
-      return () => {
-          active = false;
-      };
-  }, []);
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleLogout = async () => {
         try {
             await logoutCurrentUser();
-    } finally {
+        } finally {
             setUser(null);
             setAuthState("unauthenticated");
-    }
+        }
     };
 
     if (authState === "loading") {
@@ -137,6 +137,7 @@ export default function App() {
                             <img
                                 src={user.picture}
                                 alt="Profile"
+                                referrerPolicy="no-referrer"
                                 style={{
                                     width: "48px",
                                     height: "48px",
@@ -161,14 +162,14 @@ export default function App() {
                                 {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "U"}
                             </div>
                         )}
-            <div>
-                <div style={{fontWeight: "600", color: "var(--text-color)", fontSize: "1.1rem"}}>
-                    {user?.name || "NAIRI Operator"}
-                </div>
-                <div style={{color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "4px"}}>
-                    {user?.email}
-                </div>
-            </div>
+                        <div>
+                            <div style={{fontWeight: "600", color: "var(--text-color)", fontSize: "1.1rem"}}>
+                                {user?.name || "NAIRI Operator"}
+                            </div>
+                            <div style={{color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "4px"}}>
+                                {user?.email}
+                            </div>
+                        </div>
                     </div>
                     <button
                         className="btn-primary"
@@ -210,5 +211,5 @@ export default function App() {
                 </Routes>
             </main>
         </div>
-  );
+    );
 }
