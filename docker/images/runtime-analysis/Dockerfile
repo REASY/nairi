@@ -66,6 +66,7 @@ RUN npm install -g "@google/gemini-cli@${GEMINI_CLI_VERSION}" && \
     pip3 install --break-system-packages frida-tools
 
 COPY docker/images/runtime-analysis/.agents/skills/ /root/.agents/skills/
+COPY docker/images/runtime-analysis/ebpf /ebpf
 
 ENV GEMINI_API_KEY=""
 ENV GOOGLE_GEMINI_BASE_URL=""

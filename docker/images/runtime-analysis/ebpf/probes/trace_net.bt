@@ -1,0 +1,149 @@
+#!/usr/local/bin/bpftrace
+
+/*
+ * Binary-level observation tracer (network primitives).
+ *
+ * Shows:
+ * - socket(domain,type,protocol) creation
+ * - connect(fd, ...) calls with best-effort domain mapping
+ *
+ * Usage:
+ *   bpftrace trace_net.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]
+ *     enable_sampling=0 (default): print all events
+ *     enable_sampling=1: sampled output
+ *     enable_stack=0 (default): no stacktrace
+ *     enable_stack=1: print user stacktrace
+ *     stack_depth=40 (default): max user stack frames per printed event
+ *       supported values on older bpftrace: 10,20,40,80,120
+ */
+
+BEGIN
+{
+    @target_uid = (uint64)$1;
+    if (@target_uid == 0) {
+        printf("usage: bpftrace trace_net.bt <app_uid> [enable_sampling] [enable_stack] [stack_depth]\n");
+        exit();
+    }
+
+    @sample = (uint64)$2;
+    if (@sample != 1) {
+        @sample = 0;
+    }
+    @stack = (uint64)$3;
+    if (@stack != 1) {
+        @stack = 0;
+    }
+    @stack_depth_req = (uint64)$4;
+    if (@stack_depth_req == 0) {
+        @stack_depth = 40;
+    } else if (@stack_depth_req == 10 || @stack_depth_req == 20 || @stack_depth_req == 40 || @stack_depth_req == 80 || @stack_depth_req == 120) {
+        @stack_depth = @stack_depth_req;
+    } else {
+        @stack_depth = 40;
+        printf("[obs-net] unsupported stack_depth=%d, using 40 (supported: 10,20,40,80,120)\n", @stack_depth_req);
+    }
+    @sock_events = 0;
+    @connect_events = 0;
+    printf("[obs-net] tracing uid=%d sampling=%d stack=%d stack_depth=%d\n",
+           @target_uid, @sample, @stack, @stack_depth);
+}
+
+tracepoint:syscalls:sys_enter_socket /((uint64)uid) == @target_uid/
+{
+    @socket_seen[tid] = 1;
+    @socket_domain[tid] = args->family;
+    @socket_type[tid] = args->type;
+    @socket_proto[tid] = args->protocol;
+}
+
+tracepoint:syscalls:sys_exit_socket /((uint64)uid) == @target_uid && @socket_seen[tid]/
+{
+    $fd = args->ret;
+    if ($fd >= 0) {
+        @fd_seen[pid, $fd] = 1;
+        @fd_domain[pid, $fd] = @socket_domain[tid];
+        @fd_type[pid, $fd] = @socket_type[tid];
+        @fd_proto[pid, $fd] = @socket_proto[tid];
+
+        $n = ++@sock_events;
+        if (@sample == 0 || ($n <= 200 || (((uint64)$n % 25) == 0))) {
+            printf("[obs-net][sock#%d] uid=%d pid=%d tid=%d comm=%s fd=%d domain=%d type=%d proto=%d\n",
+                   $n, uid, pid, tid, comm, $fd,
+                   @socket_domain[tid], @socket_type[tid], @socket_proto[tid]);
+            if (@stack == 1) {
+                if (@stack_depth == 10) {
+                    print(ustack(10));
+                } else if (@stack_depth == 20) {
+                    print(ustack(20));
+                } else if (@stack_depth == 80) {
+                    print(ustack(80));
+                } else if (@stack_depth == 120) {
+                    print(ustack(120));
+                } else {
+                    print(ustack(40));
+                }
+            }
+        }
+    }
+
+    delete(@socket_seen[tid]);
+    delete(@socket_domain[tid]);
+    delete(@socket_type[tid]);
+    delete(@socket_proto[tid]);
+}
+
+tracepoint:syscalls:sys_enter_connect /((uint64)uid) == @target_uid/
+{
+    $fd = args->fd;
+    $d = @fd_domain[pid, $fd];
+    $t = @fd_type[pid, $fd];
+    $p = @fd_proto[pid, $fd];
+
+    $n = ++@connect_events;
+    if (@sample == 0 || ($n <= 360 || (($n <= 4000) && (((uint64)$n % 25) == 0)))) {
+        printf("[obs-net][conn#%d] uid=%d pid=%d tid=%d comm=%s fd=%d domain=%d type=%d proto=%d addr_ptr=%p\n",
+               $n, uid, pid, tid, comm, $fd, $d, $t, $p, args->uservaddr);
+        if (@stack == 1) {
+            if (@stack_depth == 10) {
+                print(ustack(10));
+            } else if (@stack_depth == 20) {
+                print(ustack(20));
+            } else if (@stack_depth == 80) {
+                print(ustack(80));
+            } else if (@stack_depth == 120) {
+                print(ustack(120));
+            } else {
+                print(ustack(40));
+            }
+        }
+    }
+}
+
+tracepoint:syscalls:sys_enter_close /((uint64)uid) == @target_uid/
+{
+    $fd = args->fd;
+    if (@fd_seen[pid, $fd]) {
+        delete(@fd_seen[pid, $fd]);
+        delete(@fd_domain[pid, $fd]);
+        delete(@fd_type[pid, $fd]);
+        delete(@fd_proto[pid, $fd]);
+    }
+}
+
+interval:s:3
+{
+    printf("[obs-net] uid=%d sockets=%d connects=%d\n", @target_uid, @sock_events, @connect_events);
+}
+
+END
+{
+    clear(@fd_seen);
+    clear(@fd_domain);
+    clear(@fd_type);
+    clear(@fd_proto);
+    clear(@socket_seen);
+    clear(@socket_domain);
+    clear(@socket_type);
+    clear(@socket_proto);
+    printf("[obs-net] done uid=%d sockets=%d connects=%d\n", @target_uid, @sock_events, @connect_events);
+}
