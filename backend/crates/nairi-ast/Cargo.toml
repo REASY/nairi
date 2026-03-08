@@ -1,0 +1,24 @@
+[package]
+name = "nairi-ast"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+rayon.workspace = true
+roxmltree.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tree-sitter-smali.workspace = true
+tree-sitter.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+clap = { workspace = true, features = ["derive"] }
+walkdir = "2.5.0"
+anyhow = "1.0.102"
+
+[dev-dependencies]
+tempfile.workspace = true
