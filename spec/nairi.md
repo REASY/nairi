@@ -10,14 +10,15 @@ This directory contains the split NAIRI specification for easier ownership and i
 4. [Configuration Specification](./nairi-configuration.md)
 5. [Requirements Index](./nairi-requirements.md)
 6. [AI Agent Orchestration](./nairi-ai-agent-orchestration.md)
-7. [AI-Driven Static Analysis](./nairi-ai-driven-static-analysis.md)
-8. [Static Analysis Design](./nairi-static-analysis.md)
-9. [Runtime Analysis Design](./nairi-runtime-analysis.md)
-10. [Network Inspection and Pinning Bypass](./nairi-network-and-pinning.md)
-11. [Reporting Specification](./nairi-reporting.md)
-11. [Data Model and Event Schema](./nairi-data-model.md)
-12. [Security and Compliance Controls](./nairi-security-and-compliance.md)
-13. [Roadmap and Acceptance Criteria](./nairi-roadmap.md)
+7. [Static Analysis Design](./nairi-static-analysis.md)
+8. [AST and Native Graph Pipeline](./nairi-ast-pipeline.md)
+9. [AI-Driven Static Analysis](./nairi-ai-driven-static-analysis.md)
+10. [Runtime Analysis Design](./nairi-runtime-analysis.md)
+11. [Network Inspection and Pinning Bypass](./nairi-network-and-pinning.md)
+12. [Data Model and Event Schema](./nairi-data-model.md)
+13. [Reporting Specification](./nairi-reporting.md)
+14. [Security and Compliance Controls](./nairi-security-and-compliance.md)
+15. [Roadmap and Acceptance Criteria](./nairi-roadmap.md)
 
 ## Version
 

@@ -14,6 +14,7 @@ Outputs:
 2. Manifest/component findings.
 3. Native binary findings from Ghidra.
 4. Static indicator set and confidence scores.
+5. Deterministic static evidence graph for downstream AI and reporting.
 
 ## 2. Processing Steps
 
@@ -24,6 +25,9 @@ Outputs:
 5. Extract `lib/**` native binaries.
 6. Run headless Ghidra analysis scripts.
 7. Apply static detection rules and create indicators.
+
+Detailed parser, IR, graph schema, and native/Ghidra ingestion contracts are defined in
+[AST and Native Graph Pipeline](./nairi-ast-pipeline.md).
 
 ## 3. Detection Categories
 

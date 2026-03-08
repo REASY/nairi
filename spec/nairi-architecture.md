@@ -26,6 +26,7 @@
 7. **Static Analysis Engine**
    1. Uses `apktool` for decompile and manifest extraction.
    2. Uses headless `Ghidra` for native library analysis.
+   3. Builds deterministic static evidence graph (smali + native) for rules and AI reasoning.
 8. **Runtime Analysis Engine**
    1. Starts isolated `redroid` instance.
    2. Installs and launches app.
@@ -54,7 +55,8 @@
 3. User uploads APK in frontend and starts `Analyse`.
 4. Backend API receives intake request and registers `sample_id`.
 5. AI Agent Controller resolves active run configuration snapshot and creates run plan.
-6. Orchestrator runs static stage in configured Docker image and emits baseline indicators.
+6. Orchestrator runs static stage in configured Docker image, builds static evidence graph, and emits baseline
+   indicators.
 7. Runtime stage connects via configured ADB target, boots sandbox, and executes dynamic instrumentation.
 8. MITM layer captures network behavior.
 9. If pinning blocks inspection, AI agent triggers bypass flow and runtime stage repeats.

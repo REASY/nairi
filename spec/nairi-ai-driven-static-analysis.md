@@ -2,82 +2,61 @@
 
 ## 1. Overview
 
-While the [Static Analysis Design](nairi-static-analysis.md) defines *what* must happen, this document specifies *how*
-the AI Agent systematically drives the static analysis phase. Instead of a rigid script, the static analysis phase is
-executed by an autonomous coding sub-agent (e.g., Gemini-driven interpreter) that has access to specific tools.
+While [Static Analysis Design](./nairi-static-analysis.md) defines what must happen, and
+[AST and Native Graph Pipeline](./nairi-ast-pipeline.md) defines deterministic extraction internals, this document
+specifies how the AI agent drives adaptive static analysis decisions.
 
-## 2. Agent Environment & Tools
+The static phase is evidence-first:
 
-The Static Analysis Agent is implemented by baking an autonomous CLI agent (e.g., `gemini-cli` or `aider`) directly into
-an isolated Docker container alongside the necessary reverse-engineering toolchain.
+1. Deterministic parser/native tooling builds graph-backed evidence.
+2. AI consumes that evidence to decide follow-up actions.
+3. AI can perform targeted deep dives when evidence is insufficient.
 
-The NAIRI Orchestrator simply mounts the APK and an output directory, and runs a command similar to:
+## 2. Agent Environment and Tools
 
-```bash
-docker run --rm -v /path/to/apk:/apk/target.apk -v /path/to/output:/output \
-  nairi-static:latest \
-  gemini-cli --prompt "Decompile /apk/target.apk, analyze interesting code chunks, run Ghidra on native libs, and write a summary report to /output/report.md"
-```
+The static analysis agent runs inside the configured static-analysis Docker image with reverse-engineering tooling.
 
-The embedded agent operates within the sandbox and is granted the following tools:
+Orchestrator executes the static agent with mounted APK and output paths.
 
-1. **`run_terminal_command`**: Execute arbitrary shell commands (restricted to the sandbox workspace).
-2. **`read_file_chunk`**: Read specific line ranges of a file. Essential for analyzing large `.smali` or `.java`
-   decompiled files without blowing up context window.
-3. **`grep_search`**: Search the workspace for regex/strings (e.g., finding `http://`, `AES`, `Cipher`, or specific API
-   calls).
-4. **`write_file`**: Write files to the workspace (e.g., producing headless Ghidra scripts).
+The embedded agent uses restricted tools such as:
 
-## 3. The Autonomous Inspection Loop
+1. `run_terminal_command` for controlled tool execution.
+2. `read_file_chunk` for targeted file context.
+3. `grep_search` for focused code/symbol discovery.
+4. `write_file` for generated scripts/config.
+5. Graph/evidence readers for deterministic artifact and query inspection.
 
-The Agent is prompted with a high-level goal: *"Analyze the provided APK. Identify malicious indicators, networking,
-crypto usage, and native library behavior. Produce a final Markdown report."*
+## 3. Autonomous Evidence-Driven Loop
 
-### Step 3.1: Unpacking
+The agent receives a goal similar to: analyze static behavior and produce evidence-linked indicators.
 
-The agent autonomously decides to run:
+### Step 3.1: Deterministic extraction
 
-```bash
-apktool d target.apk -o /workspace/decompiled
-```
+1. Run `apktool` decompilation.
+2. Parse manifest and smali.
+3. Discover native libraries and execute headless Ghidra scripts.
+4. Ingest normalized evidence into graph.
 
-It then reads `AndroidManifest.xml` to identify the Entry Points (Main Activity, Services, Broadcast Receivers) and
-requested permissions.
+### Step 3.2: Graph-first triage
 
-### Step 3.2: Chunked Code Analysis
+1. Execute predefined graph queries for core risk patterns.
+2. Evaluate rule hits and unresolved confidence gaps.
+3. Prioritize components/methods/libs for deeper inspection.
 
-Rather than absorbing the entire codebase, the AI agent performs targeted investigation:
+### Step 3.3: Targeted deep dives
 
-1. **Reconnaissance**: The agent runs `grep -r "http" /workspace/decompiled/smali` to find network calls.
-2. **Chunk Reading**: For interesting files identified by grep, the agent uses `read_file_chunk` to read the context
-   around the match (e.g., lines 100-150).
-3. **Summarization**: The agent internally summarizes the behavior of that chunk (e.g., "This class sends device
-   telemetry to a hardcoded IP").
-4. **Iterative Tracing**: If the agent finds an obfuscated method call, it recursively searches for the method
-   definition and reads that file chunk.
+When needed, the agent performs bounded deep analysis:
 
-### Step 3.3: Headless Ghidra Interaction
-
-When the agent discovers a `System.loadLibrary("foo")` call in the Android code, it investigates the native library:
-
-1. The agent locates `lib/arm64-v8a/libfoo.so`.
-2. The agent writes a custom Python script for Ghidra (`analyze_lib.py`) tailored to what it suspects the library does.
-3. The agent executes Ghidra headlessly:
-
-```bash
-analyzeHeadless /ghidra_project MyProject -import libfoo.so -postScript analyze_lib.py
-```
-
-4. The agent reads the output script logs to conclude behavior (e.g., finding anti-debugging tricks or JNI native method
-   registrations).
+1. Read specific smali/native contexts tied to graph evidence.
+2. Generate and run additional Ghidra scripts for one library/function scope.
+3. Add new evidence and re-evaluate indicators.
 
 ## 4. Final Aggregation
 
-Once the agent exhausts its investigation leads or reaches a time/token limit, it compiles its findings. It produces a
-structured Markdown artifact containing:
+The static phase returns structured outputs for orchestration and reporting:
 
-- Confirmed malicious or suspicious capabilities.
-- Code snippets (evidence) justifying the findings.
-- The list of files and native libraries analyzed.
+1. Evidence-linked indicator set with severity and confidence.
+2. Artifact list including deterministic parser and Ghidra outputs.
+3. AI decision log entries describing follow-up actions and rationale.
 
-This output is passed back to the main NAIRI Orchestrator to be combined with the Runtime Analysis results.
+These outputs are correlated with runtime/network stages by the main NAIRI orchestrator.
