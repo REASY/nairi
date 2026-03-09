@@ -149,9 +149,10 @@ impl DockerEngine {
         for candidate in report_candidates {
             let report = reports_dir.join(candidate);
             if report.exists()
-                && let Ok(content) = tokio::fs::read_to_string(&report).await {
-                    return Some(content);
-                }
+                && let Ok(content) = tokio::fs::read_to_string(&report).await
+            {
+                return Some(content);
+            }
         }
 
         // Fallback to any markdown file

@@ -1941,8 +1941,12 @@ name = "nairi-orchestrator"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "clap",
+ "nairi-ast",
  "nairi-core",
+ "nairi-graph",
  "nairi-storage",
+ "rsmgclient",
  "serde",
  "tokio",
  "tracing",

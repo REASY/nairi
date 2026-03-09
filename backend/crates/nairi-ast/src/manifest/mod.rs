@@ -70,10 +70,8 @@ pub fn parse_manifest(
                         // If `android:exported` is explicitly set, use it.
                         // Otherwise, if it has intent-filters, it's implicitly true (before Android 12) or false (no intent filter).
                         // A proper heuristic checks for intent-filters.
-                        let exported_attr = app_child.attribute((
-                            "http://schemas.android.com/apk/res/android",
-                            "exported",
-                        ));
+                        let exported_attr = app_child
+                            .attribute(("http://schemas.android.com/apk/res/android", "exported"));
 
                         let exported = match exported_attr {
                             Some("true") => true,

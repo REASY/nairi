@@ -1,11 +1,8 @@
 use nairi_ast::ir::{ApkIr, ClassIr, EvidenceRef, ManifestIr, MethodIr, PermissionIr};
-use nairi_graph::ingest::{GraphActorSystem, IngestMessage};
-use nairi_graph::mapping;
-use nairi_graph::query;
+use nairi_graph::ingest::GraphActorSystem;
 use rsmgclient::{ConnectParams, Connection};
 use std::time::Duration;
-use testcontainers::{ContainerAsync, GenericImage, ImageExt, runners::AsyncRunner};
-use tokio::sync::oneshot;
+use testcontainers::{ContainerAsync, GenericImage, runners::AsyncRunner};
 
 async fn start_memgraph() -> (ContainerAsync<GenericImage>, ConnectParams) {
     let image = GenericImage::new("memgraph/memgraph-mage", "latest")
@@ -99,9 +96,9 @@ async fn test_graph_actor_ingestion_and_query() {
         .await
         .expect("Failed to insert APK");
     actor
-        .insert_class("apk_123".to_string(), class_ir)
+        .insert_classes("apk_123".to_string(), vec![class_ir])
         .await
-        .expect("Failed to insert Class");
+        .expect("Failed to insert Classes");
 
     // Give the actor a millisecond to process if it were actually decoupled and batched,
     // though the oneshot channel in GraphActor blocking guarantees it's done.
@@ -133,9 +130,9 @@ async fn test_graph_actor_ingestion_and_query() {
 
     // Check Class node relationships
     let query = "
-        MATCH (a:Apk)-[:CONTAINS]->(c:Class)-[:DECLARES]->(m:Method)
+        MATCH (a:Apk)-[:CONTAINS_CLASS]->(c:Class)-[:DECLARES_METHOD]->(m:Method)
         WHERE a.apk_id = 'apk_123' AND c.descriptor = 'Lcom/example/test/MainActivity;' AND m.name = 'onCreate'
-        RETURN m.proto
+        RETURN m.signature
     ";
     let _cols2 = sync_conn.execute(query, None).unwrap();
     let method_rows = sync_conn.fetchall().unwrap();

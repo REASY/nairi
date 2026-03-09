@@ -1,5 +1,6 @@
+use crate::db::Memgraph;
 use nairi_ast::ir::{ApkIr, ClassIr};
-use rsmgclient::{ConnectParams, Connection};
+use rsmgclient::ConnectParams;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::mapping;
@@ -17,9 +18,9 @@ pub enum IngestMessage {
         apk: ApkIr,
         respond_to: oneshot::Sender<Result<(), IngestError>>,
     },
-    InsertClass {
+    InsertClasses {
         apk_id: String,
-        class: ClassIr,
+        classes: Vec<ClassIr>,
         respond_to: oneshot::Sender<Result<(), IngestError>>,
     },
     Stop,
@@ -48,11 +49,15 @@ impl GraphActor {
         recv.await.map_err(|_| IngestError::ChannelClosed)?
     }
 
-    pub async fn insert_class(&self, apk_id: String, class: ClassIr) -> Result<(), IngestError> {
+    pub async fn insert_classes(
+        &self,
+        apk_id: String,
+        classes: Vec<ClassIr>,
+    ) -> Result<(), IngestError> {
         let (send, recv) = oneshot::channel();
-        let msg = IngestMessage::InsertClass {
+        let msg = IngestMessage::InsertClasses {
             apk_id,
-            class,
+            classes,
             respond_to: send,
         };
         self.sender
@@ -89,11 +94,18 @@ impl GraphActorSystem {
     pub fn start(mut self) {
         tokio::task::spawn_blocking(move || {
             let params = ConnectParams {
-                host: Some(self.host),
+                host: Some(self.host.clone()),
                 port: self.port,
+                lazy: false,
+                autocommit: false,
                 ..Default::default()
             };
-            let mut conn = match Connection::connect(&params) {
+
+            if let Err(e) = mapping::init_indices(&params) {
+                eprintln!("Failed to initialize Memgraph indices: {}", e);
+            }
+
+            let mut db = match Memgraph::try_new(&params) {
                 Ok(c) => c,
                 Err(e) => {
                     eprintln!("Failed to connect to Memgraph: {}", e);
@@ -103,18 +115,19 @@ impl GraphActorSystem {
             while let Some(msg) = self.receiver.blocking_recv() {
                 match msg {
                     IngestMessage::InsertApk { apk, respond_to } => {
-                        let result = mapping::insert_apk(&mut conn, &apk)
+                        let result = mapping::insert_apk(&mut db, &apk)
                             .map_err(|e| IngestError::Database(e.to_string()));
+                        let _ = db.commit();
                         let _ = respond_to.send(result);
                     }
-                    IngestMessage::InsertClass {
+                    IngestMessage::InsertClasses {
                         apk_id,
-                        class,
+                        classes,
                         respond_to,
                     } => {
-                        let result = mapping::insert_class(&mut conn, &apk_id, &class)
+                        let result = mapping::insert_classes(&mut db, &apk_id, &classes)
                             .map_err(|e| IngestError::Database(e.to_string()));
-                        let _ = conn.commit();
+                        let _ = db.commit();
                         let _ = respond_to.send(result);
                     }
                     IngestMessage::Stop => break,

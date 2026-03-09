@@ -1,4 +1,5 @@
 pub mod engine;
+pub mod pipeline;
 
 use std::path::PathBuf;
 use std::sync::Arc;

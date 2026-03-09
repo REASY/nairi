@@ -15,7 +15,14 @@ fn main() {
 
     fn print_errors(node: tree_sitter::Node, code: &str, depth: usize) {
         if node.is_error() || node.is_missing() {
-            println!("{:indent$}Error node: '{}' at {}:{}", "", node.utf8_text(code.as_bytes()).unwrap().replace('\n', " "), node.start_position().row, node.start_position().column, indent = depth * 2);
+            println!(
+                "{:indent$}Error node: '{}' at {}:{}",
+                "",
+                node.utf8_text(code.as_bytes()).unwrap().replace('\n', " "),
+                node.start_position().row,
+                node.start_position().column,
+                indent = depth * 2
+            );
         }
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
