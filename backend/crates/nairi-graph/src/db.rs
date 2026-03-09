@@ -143,10 +143,10 @@ impl Memgraph {
 
     pub fn reconnect_if_bad(&mut self) {
         let status = self.connection.status();
-        if status == ConnectionStatus::Bad || status == ConnectionStatus::Closed {
-            if let Err(err) = self.reconnect() {
-                eprintln!("Failed to reconnect memgraph after bad connection: {err}");
-            }
+        if (status == ConnectionStatus::Bad || status == ConnectionStatus::Closed)
+            && let Err(err) = self.reconnect()
+        {
+            eprintln!("Failed to reconnect memgraph after bad connection: {err}");
         }
     }
 
@@ -159,14 +159,14 @@ impl Memgraph {
             Err(err) => {
                 let msg = err.to_string();
                 self.reconnect_if_bad();
-                return Err(MemgraphError::QueryError(msg).into());
+                return Err(MemgraphError::QueryError(msg));
             }
         };
 
         if let Err(e) = self.connection.fetchall() {
             let msg = e.to_string();
             self.reconnect_if_bad();
-            return Err(MemgraphError::QueryError(msg).into());
+            return Err(MemgraphError::QueryError(msg));
         }
 
         Ok(())

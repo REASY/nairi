@@ -30,7 +30,7 @@ pub fn get_exported_components(
 
     let mut extracted = Vec::new();
     for row in records {
-        if let Some(Value::String(name)) = row.values.get(0) {
+        if let Some(Value::String(name)) = row.values.first() {
             extracted.push(name.clone());
         }
     }

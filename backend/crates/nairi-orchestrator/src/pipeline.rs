@@ -1,5 +1,5 @@
 use nairi_ast::ir::EvidenceRef;
-use nairi_graph::ingest::{GraphActor, GraphActorSystem};
+use nairi_graph::ingest::GraphActorSystem;
 use rsmgclient::ConnectParams;
 use std::path::PathBuf;
 
